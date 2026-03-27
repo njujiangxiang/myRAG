@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+@theme inline {
+  /* Apple-inspired Tech Theme - Light only */
+  --color-background: oklch(0.98 0.002 286);
+  --color-foreground: oklch(0.2 0.01 286);
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.2 0.01 286);
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.2 0.01 286);
+  --color-primary: oklch(0.55 0.2 260);
+  --color-primary-foreground: oklch(0.98 0 0);
+  --color-secondary: oklch(0.95 0.003 286);
+  --color-secondary-foreground: oklch(0.3 0.01 286);
+  --color-muted: oklch(0.95 0.003 286);
+  --color-muted-foreground: oklch(0.5 0.01 286);
+  --color-accent: oklch(0.6 0.18 200);
+  --color-accent-foreground: oklch(0.98 0 0);
+  --color-destructive: oklch(0.65 0.25 25);
+  --color-destructive-foreground: oklch(0.98 0 0);
+  --color-border: oklch(0.9 0.005 286);
+  --color-input: oklch(0.9 0.005 286);
+  --color-ring: oklch(0.55 0.2 260);
+
+  /* Apple-style radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+
+  /* Tech-inspired accent glows */
+  --color-glow-blue: oklch(0.7 0.15 250 / 0.15);
+  --color-glow-purple: oklch(0.7 0.15 280 / 0.15);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  background: linear-gradient(180deg, oklch(0.98 0.002 286) 0%, oklch(0.96 0.003 286) 100%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Subtle gradient for cards */
+.gradient-card {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(250, 250, 252, 0.8) 100%
+  );
+}
+
+/* Tech-style glow effects */
+.glow-primary {
+  box-shadow: 0 0 30px var(--color-glow-blue);
+}
+
+.glow-accent {
+  box-shadow: 0 0 30px var(--color-glow-purple);
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(0.8 0.005 286);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.7 0.01 286);
+}
