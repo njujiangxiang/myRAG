@@ -19,7 +19,7 @@ import (
 	"myrag/internal/worker"
 )
 
-// DocumentHandler handles document requests
+// DocumentHandler 处理文档请求
 type DocumentHandler struct {
 	docRepo  *models.DocumentRepository
 	kbRepo   *models.KnowledgeBaseRepository
@@ -28,7 +28,7 @@ type DocumentHandler struct {
 	qdrant   *qdrant.Client
 }
 
-// NewDocumentHandler creates a new document handler
+// NewDocumentHandler 创建一个新的文档处理器
 func NewDocumentHandler(docRepo *models.DocumentRepository, kbRepo *models.KnowledgeBaseRepository, minioClient *minio.Client, natsClient *nats.Client, qdrantClient *qdrant.Client) *DocumentHandler {
 	return &DocumentHandler{
 		docRepo:  docRepo,
@@ -39,7 +39,7 @@ func NewDocumentHandler(docRepo *models.DocumentRepository, kbRepo *models.Knowl
 	}
 }
 
-// DocumentResult represents document data in response
+// DocumentResult 表示响应中的文档数据
 type DocumentResult struct {
 	ID           uuid.UUID      `json:"id"`
 	TenantID     uuid.UUID      `json:"tenant_id"`
@@ -53,7 +53,7 @@ type DocumentResult struct {
 	UpdatedAt    time.Time      `json:"updated_at"`
 }
 
-// ListDocuments handles listing documents for a knowledge base
+// ListDocuments 处理列出知识库文档的请求
 // GET /api/v1/kbs/:id/docs
 func (h *DocumentHandler) ListDocuments(c *gin.Context) {
 	kbIDStr := c.Param("id")
@@ -88,7 +88,7 @@ func (h *DocumentHandler) ListDocuments(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
-// UploadDocumentRequest represents a document upload response
+// UploadDocumentResponse 表示文档上传响应
 type UploadDocumentResponse struct {
 	ID       uuid.UUID `json:"id"`
 	Filename string    `json:"filename"`
@@ -96,7 +96,7 @@ type UploadDocumentResponse struct {
 	Message  string    `json:"message"`
 }
 
-// UploadDocument handles uploading a new document
+// UploadDocument 处理上传新文档
 // POST /api/v1/kbs/:id/docs
 func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	kbIDStr := c.Param("id")
@@ -106,14 +106,14 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	// Get tenant from context
+	// 从上下文中获取租户
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
 		return
 	}
 
-	// Verify KB belongs to tenant
+	// 验证 KB 属于租户
 	kb, err := h.kbRepo.GetByID(c.Request.Context(), kbID)
 	if err != nil || kb == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "knowledge base not found"})
@@ -124,7 +124,7 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	// Get file from form
+	// 从表单中获取文件
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file"})
@@ -132,24 +132,24 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Validate file size (max 50MB)
+	// 验证文件大小（最大 50MB）
 	const maxFileSize = 50 << 20 // 50MB
 	if header.Size > maxFileSize {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large (max 50MB)"})
 		return
 	}
 
-	// Sanitize filename (prevent path traversal and special characters)
+	// 清理文件名（防止路径遍历和特殊字符）
 	safeFilename := path.Base(header.Filename)
 	safeFilename = strings.Map(func(r rune) rune {
-		// Allow alphanumeric, dots, underscores, hyphens
+		// 允许字母数字、点、下划线、连字符
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '.' || r == '_' || r == '-' {
 			return r
 		}
 		return '_'
 	}, safeFilename)
 
-	// Validate file type
+	// 验证文件类型
 	allowedMimeTypes := map[string]bool{
 		"application/pdf": true,
 		"text/csv":        true,
@@ -159,11 +159,11 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 
 	contentType := header.Header.Get("Content-Type")
 
-	// If Content-Type is empty or unknown, try to detect it from file extension
+	// 如果 Content-Type 为空或未知，尝试从文件扩展名检测
 	if !allowedMimeTypes[contentType] {
-		// Check if it's an empty/unknown content type (common with multipart uploads)
+		// 检查是否是空/未知内容类型（常见于 multipart 上传）
 		if contentType == "" || contentType == "application/octet-stream" {
-			// Detect MIME type from file extension
+			// 从文件扩展名检测 MIME 类型
 			ext := strings.ToLower(path.Ext(safeFilename))
 			switch ext {
 			case ".pdf":
@@ -177,21 +177,21 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 			}
 		}
 
-		// Final validation
+		// 最终验证
 		if !allowedMimeTypes[contentType] {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported file type"})
 			return
 		}
 	}
 
-	// Read file content
+	// 读取文件内容
 	fileData, err := io.ReadAll(file)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read file"})
 		return
 	}
 
-	// Generate unique object key: documents/{tenant_id}/{kb_id}/{doc_id}_{filename}
+	// 生成唯一的对象键：documents/{tenant_id}/{kb_id}/{doc_id}_{filename}
 	docID := uuid.New()
 	objectKey := fmt.Sprintf("documents/%s/%s/%s_%s",
 		tenantID.String(),
@@ -200,14 +200,14 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		safeFilename,
 	)
 
-	// Upload to MinIO
+	// 上传到 MinIO
 	uploadedPath, err := h.minio.UploadFile(c.Request.Context(), objectKey, fileData, contentType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file"})
 		return
 	}
 
-	// Create document record
+	// 创建文档记录
 	doc := &models.Document{
 		ID:        docID,
 		TenantID:  tenantID,
@@ -222,13 +222,13 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	}
 
 	if err := h.docRepo.Create(c.Request.Context(), doc); err != nil {
-		// Clean up MinIO file on DB error
+		// 如果 DB 错误，清理 MinIO 文件
 		_ = h.minio.DeleteFile(c.Request.Context(), objectKey)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create document record"})
 		return
 	}
 
-	// Publish event to NATS for async processing
+	// 发布事件到 NATS 进行异步处理
 	event := worker.DocumentEvent{
 		DocID:    doc.ID,
 		TenantID: doc.TenantID,
@@ -238,8 +238,8 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	}
 	eventData, _ := json.Marshal(event)
 	if err := h.nats.PublishDocumentEvent(c.Request.Context(), "uploaded", doc.ID.String(), eventData); err != nil {
-		// Log error but don't fail the request (document is still uploaded)
-		// Worker will process it eventually or it will timeout
+		// 记录错误但不失败（文档仍已上传）
+		// Worker 将最终处理它，否则会超时
 		fmt.Printf("failed to publish NATS event: %v\n", err)
 	}
 
@@ -251,7 +251,7 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	})
 }
 
-// GetDocument handles getting a single document
+// GetDocument 处理获取单个文档
 // GET /api/v1/docs/:id
 func (h *DocumentHandler) GetDocument(c *gin.Context) {
 	idStr := c.Param("id")
@@ -261,7 +261,7 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 		return
 	}
 
-	// Get tenant ID from context
+	// 从上下文中获取租户 ID
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
@@ -274,13 +274,13 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 		return
 	}
 
-	// Verify tenant ownership
+	// 验证租户所有权
 	if doc.TenantID != tenantID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
 
-	// Verify KB belongs to tenant
+	// 验证 KB 属于租户
 	kb, err := h.kbRepo.GetByID(c.Request.Context(), doc.KBID)
 	if err != nil || kb == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "knowledge base not found"})
@@ -305,7 +305,7 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 	})
 }
 
-// GetDocumentContent handles getting parsed document content
+// GetDocumentContent 处理获取解析后的文档内容
 // GET /api/v1/docs/:id/content
 func (h *DocumentHandler) GetDocumentContent(c *gin.Context) {
 	idStr := c.Param("id")
@@ -315,7 +315,7 @@ func (h *DocumentHandler) GetDocumentContent(c *gin.Context) {
 		return
 	}
 
-	// Get tenant ID from context
+	// 从上下文中获取租户 ID
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
@@ -328,13 +328,13 @@ func (h *DocumentHandler) GetDocumentContent(c *gin.Context) {
 		return
 	}
 
-	// Verify tenant ownership
+	// 验证租户所有权
 	if doc.TenantID != tenantID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
 
-	// Verify KB belongs to tenant
+	// 验证 KB 属于租户
 	kb, err := h.kbRepo.GetByID(c.Request.Context(), doc.KBID)
 	if err != nil || kb == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "knowledge base not found"})
@@ -345,13 +345,13 @@ func (h *DocumentHandler) GetDocumentContent(c *gin.Context) {
 		return
 	}
 
-	// Check if document is indexed
+	// 检查文档是否已索引
 	if doc.Status != models.DocumentStatusIndexed {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "document not yet indexed"})
 		return
 	}
 
-	// Generate presigned URL for temporary access (15 minutes expiry)
+	// 生成预签名 URL 以供临时访问（15 分钟过期）
 	presignedURL, err := h.minio.GetPresignedURL(c.Request.Context(), path.Base(doc.FilePath), 15*time.Minute)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate download URL"})
@@ -366,7 +366,7 @@ func (h *DocumentHandler) GetDocumentContent(c *gin.Context) {
 	})
 }
 
-// DeleteDocument handles deleting a document
+// DeleteDocument 处理删除文档
 // DELETE /api/v1/docs/:id
 func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	idStr := c.Param("id")
@@ -376,27 +376,27 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 		return
 	}
 
-	// Get tenant ID from context
+	// 从上下文中获取租户 ID
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
 		return
 	}
 
-	// Get document to find MinIO key
+	// 获取文档以查找 MinIO 键
 	doc, err := h.docRepo.GetByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
 		return
 	}
 
-	// Verify tenant ownership
+	// 验证租户所有权
 	if doc.TenantID != tenantID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
 
-	// Verify KB belongs to tenant
+	// 验证 KB 属于租户
 	kb, err := h.kbRepo.GetByID(c.Request.Context(), doc.KBID)
 	if err != nil || kb == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "knowledge base not found"})
@@ -407,20 +407,20 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 		return
 	}
 
-	// Delete from MinIO first
+	// 先从 MinIO 删除
 	if doc.FilePath != "" {
 		objectKey := path.Base(doc.FilePath)
 		_ = h.minio.DeleteFile(c.Request.Context(), objectKey)
-		// Continue even if delete fails (file might not exist)
+		// 即使删除失败也继续（文件可能不存在）
 	}
 
-	// Delete vectors from Qdrant
+	// 从 Qdrant 删除向量
 	if err := h.qdrant.DeleteByDocumentID(c.Request.Context(), doc.TenantID, doc.KBID, doc.ID); err != nil {
-		// Log error but continue (document will still be deleted from DB)
+		// 记录错误但继续（文档仍将从 DB 删除）
 		fmt.Printf("failed to delete qdrant vectors: %v\n", err)
 	}
 
-	// Delete from database
+	// 从数据库删除
 	if err := h.docRepo.Delete(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete document"})
 		return

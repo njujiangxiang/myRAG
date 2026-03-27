@@ -13,14 +13,14 @@ import (
 	"myrag/internal/models"
 )
 
-// AuthHandler handles authentication requests
+// AuthHandler 处理认证请求
 type AuthHandler struct {
 	userRepo *models.UserRepository
 	jwt      *jwt.JWT
 	secret   string
 }
 
-// NewAuthHandler creates a new auth handler
+// NewAuthHandler 创建一个新的认证处理器
 func NewAuthHandler(userRepo *models.UserRepository, secret string) *AuthHandler {
 	return &AuthHandler{
 		userRepo: userRepo,
@@ -29,25 +29,25 @@ func NewAuthHandler(userRepo *models.UserRepository, secret string) *AuthHandler
 	}
 }
 
-// RegisterRequest represents a registration request
+// RegisterRequest 表示注册请求
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=8"`
 }
 
-// LoginRequest represents a login request
+// LoginRequest 表示登录请求
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 
-// AuthResponse represents an authentication response
+// AuthResponse 表示认证响应
 type AuthResponse struct {
 	Token string     `json:"token"`
 	User  UserResult `json:"user"`
 }
 
-// UserResult represents user data in response
+// UserResult 表示响应中的用户数据
 type UserResult struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
@@ -55,7 +55,7 @@ type UserResult struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// Register handles user registration
+// Register 处理用户注册
 // POST /api/v1/auth/register
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
@@ -64,28 +64,28 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Check if user already exists
+	// 检查用户是否已存在
 	existing, err := h.userRepo.GetByEmail(c.Request.Context(), req.Email)
 	if err == nil && existing != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
 		return
 	}
 
-	// Hash password
+	// 哈希密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
 		return
 	}
 
-	// Get or create default tenant
+	// 获取或创建默认租户
 	tenantID := uuid.Nil // Will be set by middleware or use default
 	if tenantID == uuid.Nil {
-		// For single-user mode, use a predefined tenant
+		// 对于单用户模式，使用预定义的租户
 		tenantID, _ = uuid.Parse("00000000-0000-0000-0000-000000000001")
 	}
 
-	// Create user
+	// 创建用户
 	user := &models.User{
 		ID:           uuid.New(),
 		TenantID:     tenantID,
@@ -101,7 +101,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT token
+	// 生成 JWT token
 	token, err := h.jwt.GenerateToken(user.ID, user.TenantID, user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
@@ -119,7 +119,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
-// Login handles user login
+// Login 处理用户登录
 // POST /api/v1/auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
@@ -128,20 +128,20 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Get user by email
+	// 通过邮箱获取用户
 	user, err := h.userRepo.GetByEmail(c.Request.Context(), req.Email)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
 
-	// Check password
+	// 检查密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
 
-	// Generate JWT token
+	// 生成 JWT token
 	token, err := h.jwt.GenerateToken(user.ID, user.TenantID, user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
@@ -159,15 +159,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
-// Logout handles user logout
+// Logout 处理用户登出
 // POST /api/v1/auth/logout
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// For stateless JWT, logout is client-side (just discard token)
-	// Optionally, we could maintain a blacklist of revoked tokens
+	// 对于无状态 JWT，登出是客户端行为（只需丢弃 token）
+	// 可选：我们可以维护一个被撤销的 token 黑名单
 	c.JSON(http.StatusOK, gin.H{"message": "logged out successfully"})
 }
 
-// Me returns current user info
+// Me 返回当前用户信息
 // GET /api/v1/auth/me
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID, exists := c.Get("user_id")
@@ -190,14 +190,14 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	})
 }
 
-// generateJWT creates a JWT token for a user
+// generateJWT 创建 JWT token
 // Deprecated: use h.jwt.GenerateToken instead
 func generateJWT(userID, tenantID uuid.UUID, email string, secret string) (string, error) {
 	j := jwt.New(secret)
 	return j.GenerateToken(userID, tenantID, email)
 }
 
-// AuthMiddleware extracts and validates JWT from request
+// AuthMiddleware 从请求中提取并验证 JWT
 func AuthMiddleware(secret string) gin.HandlerFunc {
 	j := jwt.New(secret)
 
@@ -209,13 +209,13 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 			return
 		}
 
-		// Extract token from "Bearer <token>" format
+		// 从 "Bearer <token>" 格式中提取 token
 		tokenString := authHeader
 		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 			tokenString = authHeader[7:]
 		}
 
-		// Validate JWT token and extract claims
+		// 验证 JWT token 并提取声明
 		claims, err := j.ValidateToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
@@ -223,14 +223,14 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 			return
 		}
 
-		// Set user_id and tenant_id in context
+		// 在上下文中设置 user_id 和 tenant_id
 		c.Set("user_id", claims.UserID)
 		c.Set("tenant_id", claims.TenantID)
 		c.Next()
 	}
 }
 
-// TenantMiddleware sets tenant context from user claim
+// TenantMiddleware 从用户声明中设置租户上下文
 func TenantMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID, exists := c.Get("tenant_id")
@@ -240,7 +240,7 @@ func TenantMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Set tenant context in database connection
+		// 在数据库连接中设置租户上下文
 		ctx := context.WithValue(c.Request.Context(), "tenant_id", tenantID)
 		c.Request = c.Request.WithContext(ctx)
 

@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Tenant represents a multi-tenant organization
+// Tenant 表示多租户组织
 type Tenant struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
@@ -14,18 +14,18 @@ type Tenant struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// User represents a system user
+// User 表示系统用户
 type User struct {
 	ID           uuid.UUID `json:"id"`
 	TenantID     uuid.UUID `json:"tenant_id"`
 	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"` // Never serialize to JSON
+	PasswordHash string    `json:"-"` // 永不序列化为 JSON
 	Role         string    `json:"role"` // user, admin
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// KnowledgeBase represents a user's knowledge repository
+// KnowledgeBase 表示用户的知识库
 type KnowledgeBase struct {
 	ID          uuid.UUID  `json:"id"`
 	TenantID    uuid.UUID  `json:"tenant_id"`
@@ -37,23 +37,23 @@ type KnowledgeBase struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-// DocumentStatus represents the processing status of a document
+// DocumentStatus 表示文档的处理状态
 type DocumentStatus string
 
 const (
-	DocumentStatusPending    DocumentStatus = "pending"
-	DocumentStatusProcessing DocumentStatus = "processing"
-	DocumentStatusIndexed    DocumentStatus = "indexed"
-	DocumentStatusError      DocumentStatus = "error"
+	DocumentStatusPending    DocumentStatus = "pending"    // 待处理
+	DocumentStatusProcessing DocumentStatus = "processing" // 处理中
+	DocumentStatusIndexed    DocumentStatus = "indexed"    // 已索引
+	DocumentStatusError      DocumentStatus = "error"      // 错误
 )
 
-// Document represents an uploaded document
+// Document 表示上传的文档
 type Document struct {
 	ID           uuid.UUID      `json:"id"`
 	TenantID     uuid.UUID      `json:"tenant_id"`
 	KBID         uuid.UUID      `json:"kb_id"`
 	Filename     string         `json:"filename"`
-	FilePath     string         `json:"file_path"` // MinIO key
+	FilePath     string         `json:"file_path"` // MinIO 对象键
 	FileSize     int64          `json:"file_size"`
 	MimeType     string         `json:"mime_type"`
 	Status       DocumentStatus `json:"status"`
@@ -63,7 +63,7 @@ type Document struct {
 	UpdatedAt    time.Time      `json:"updated_at"`
 }
 
-// ChatSession represents a conversation session
+// ChatSession 表示对话会话
 type ChatSession struct {
 	ID        uuid.UUID  `json:"id"`
 	TenantID  uuid.UUID  `json:"tenant_id"`
@@ -74,26 +74,26 @@ type ChatSession struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
-// MessageRole represents the sender of a message
+// MessageRole 表示消息发送者
 type MessageRole string
 
 const (
-	MessageRoleUser      MessageRole = "user"
-	MessageRoleAssistant MessageRole = "assistant"
-	MessageRoleSystem    MessageRole = "system"
+	MessageRoleUser      MessageRole = "user"      // 用户
+	MessageRoleAssistant MessageRole = "assistant" // 助手
+	MessageRoleSystem    MessageRole = "system"    // 系统
 )
 
-// Message represents a chat message
+// Message 表示聊天消息
 type Message struct {
 	ID        uuid.UUID   `json:"id"`
 	SessionID uuid.UUID   `json:"session_id"`
 	Role      MessageRole `json:"role"`
 	Content   string      `json:"content"`
-	Metadata  map[string]any `json:"metadata,omitempty"` // Citations, sources, etc.
+	Metadata  map[string]any `json:"metadata,omitempty"` // 引用、来源等
 	CreatedAt time.Time   `json:"created_at"`
 }
 
-// Chunk represents a processed text chunk with embedding
+// Chunk 表示带有嵌入向量的处理文本块
 type Chunk struct {
 	ID          uuid.UUID `json:"id"`
 	DocumentID  uuid.UUID `json:"document_id"`
@@ -101,7 +101,7 @@ type Chunk struct {
 	KBID        uuid.UUID `json:"kb_id"`
 	Content     string    `json:"content"`
 	ChunkIndex  int       `json:"chunk_index"`
-	Embedding   []float32 `json:"-"` // Vector, not stored in PostgreSQL
+	Embedding   []float32 `json:"-"` // 向量，不存储在 PostgreSQL 中
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 }

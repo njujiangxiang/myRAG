@@ -11,7 +11,7 @@ import (
 	"github.com/knadh/koanf/v2"
 )
 
-// Config holds all configuration
+// Config 持有所有配置
 type Config struct {
 	Server   ServerConfig   `json:"server"`
 	Database DatabaseConfig `json:"database"`
@@ -23,38 +23,38 @@ type Config struct {
 	Rerank   RerankConfig   `json:"rerank"`
 }
 
-// RerankConfig holds rerank configuration for BGE self-hosted service
+// RerankConfig 持有 BGE 自托管重排序服务的配置
 type RerankConfig struct {
 	Enabled    bool   `json:"enabled"`
-	BaseURL    string `json:"base_url"` // BGE service URL
-	Model      string `json:"model"`    // Model name (used by BGE service)
+	BaseURL    string `json:"base_url"` // BGE 服务地址
+	Model      string `json:"model"`    // 模型名称（由 BGE 服务使用）
 	TopK       int    `json:"top_k"`
 	Candidates int    `json:"candidates"`
 }
 
-// ServerConfig holds HTTP server configuration
+// ServerConfig 持有 HTTP 服务器配置
 type ServerConfig struct {
 	Port string `json:"port"`
 	Env  string `json:"env"` // development, staging, production
 }
 
-// DatabaseConfig holds PostgreSQL configuration
+// DatabaseConfig 持有 PostgreSQL 配置
 type DatabaseConfig struct {
 	URL string `json:"url"`
 }
 
-// QdrantConfig holds Qdrant vector DB configuration
+// QdrantConfig 持有 Qdrant 向量数据库配置
 type QdrantConfig struct {
 	URL    string `json:"url"`
 	APIKey string `json:"api_key"`
 }
 
-// NATSConfig holds NATS JetStream configuration
+// NATSConfig 持有 NATS JetStream 配置
 type NATSConfig struct {
 	URL string `json:"url"`
 }
 
-// MinIOConfig holds MinIO S3 configuration
+// MinIOConfig 持有 MinIO S3 配置
 type MinIOConfig struct {
 	Endpoint  string `json:"endpoint"`
 	AccessKey string `json:"access_key"`
@@ -63,30 +63,30 @@ type MinIOConfig struct {
 	UseSSL    bool   `json:"use_ssl"`
 }
 
-// LLMConfig holds LLM provider configuration
+// LLMConfig 持有 LLM 提供商配置
 type LLMConfig struct {
 	Provider string `json:"provider"` // openai, anthropic, local
 	APIKey   string `json:"api_key"`
-	Model    string `json:"model"` // e.g., text-embedding-3-small
+	Model    string `json:"model"` // 例如：text-embedding-3-small
 }
 
-// JWTConfig holds JWT authentication configuration
+// JWTConfig 持有 JWT 认证配置
 type JWTConfig struct {
 	Secret string        `json:"secret"`
 	Expiry time.Duration `json:"expiry"`
 }
 
-// Load reads configuration from environment variables
+// Load 从环境变量读取配置
 func Load() (*Config, error) {
 	k := koanf.New(".")
 
-	// Load from environment variables with MYRAG_ prefix
-	// e.g., MYRAG_SERVER_PORT=8080
+	// 从环境变量加载，使用 MYRAG_ 前缀
+	// 例如：MYRAG_SERVER_PORT=8080
 	if err := k.Load(env.Provider("MYRAG_", ".", func(s string) string {
 		// MYRAG_SERVER_PORT -> server.port
 		return s[5:]
 	}), nil); err != nil {
-		return nil, fmt.Errorf("failed to load env config: %w", err)
+		return nil, fmt.Errorf("加载环境变量配置失败：%w", err)
 	}
 
 	cfg := &Config{
@@ -129,17 +129,17 @@ func Load() (*Config, error) {
 		},
 	}
 
-	// Validate required configuration
+	// 验证必需的配置
 	if cfg.LLM.APIKey == "" && cfg.LLM.Provider != "local" {
-		return nil, fmt.Errorf("LLM API key is required for %s provider", cfg.LLM.Provider)
+		return nil, fmt.Errorf("%s 提供商需要 LLM API 密钥", cfg.LLM.Provider)
 	}
 
-	// JWT secret is required in production
+	// 生产环境需要 JWT 密钥
 	if cfg.JWT.Secret == "" && cfg.Server.Env == "production" {
-		return nil, fmt.Errorf("JWT_SECRET environment variable is required in production")
+		return nil, fmt.Errorf("生产环境需要 JWT_SECRET 环境变量")
 	}
 
-	// Generate JWT secret for development if not set
+	// 开发环境如果没有设置，生成随机密钥
 	if cfg.JWT.Secret == "" {
 		cfg.JWT.Secret = generateDevSecret()
 	}
@@ -147,7 +147,7 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// getEnv gets environment variable with fallback
+// getEnv 获取环境变量，带默认值回退
 func getEnv(key, fallback string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
@@ -155,7 +155,7 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// getEnvInt gets integer environment variable with fallback
+// getEnvInt 获取整数类型环境变量，带默认值回退
 func getEnvInt(key string, fallback int) int {
 	if value, exists := os.LookupEnv(key); exists {
 		if result, err := strconv.Atoi(value); err == nil {
@@ -165,8 +165,8 @@ func getEnvInt(key string, fallback int) int {
 	return fallback
 }
 
-// generateDevSecret generates a random secret for development
+// generateDevSecret 生成开发环境随机密钥
 func generateDevSecret() string {
-	// Simple dev secret - not for production use
+	// 简单的开发密钥 - 不用于生产环境
 	return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("dev-secret-%d", time.Now().UnixNano())))
 }

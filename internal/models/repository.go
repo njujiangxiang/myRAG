@@ -8,17 +8,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserRepository handles user data access
+// UserRepository 处理用户数据访问
 type UserRepository struct {
 	db *sql.DB
 }
 
-// NewUserRepository creates a new user repository
+// NewUserRepository 创建一个新的用户仓库
 func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-// Create creates a new user
+// Create 创建一个新用户
 func (r *UserRepository) Create(ctx context.Context, user *User) error {
 	query := `
 		INSERT INTO users (id, tenant_id, email, password_hash, role, created_at, updated_at)
@@ -36,7 +36,7 @@ func (r *UserRepository) Create(ctx context.Context, user *User) error {
 	).Scan(&user.ID)
 }
 
-// GetByID retrieves a user by ID
+// GetByID 根据 ID 获取用户
 func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	query := `
 		SELECT id, tenant_id, email, password_hash, role, created_at, updated_at
@@ -59,7 +59,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, erro
 	return user, nil
 }
 
-// GetByEmail retrieves a user by email
+// GetByEmail 根据邮箱获取用户
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
 		SELECT id, tenant_id, email, password_hash, role, created_at, updated_at
@@ -82,7 +82,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*User, e
 	return user, nil
 }
 
-// GetByTenant retrieves all users for a tenant
+// GetByTenant 获取租户的所有用户
 func (r *UserRepository) GetByTenant(ctx context.Context, tenantID uuid.UUID) ([]*User, error) {
 	query := `
 		SELECT id, tenant_id, email, password_hash, role, created_at, updated_at
@@ -115,7 +115,7 @@ func (r *UserRepository) GetByTenant(ctx context.Context, tenantID uuid.UUID) ([
 	return users, rows.Err()
 }
 
-// Update updates an existing user
+// Update 更新现有用户
 func (r *UserRepository) Update(ctx context.Context, user *User) error {
 	query := `
 		UPDATE users
@@ -132,24 +132,24 @@ func (r *UserRepository) Update(ctx context.Context, user *User) error {
 	return err
 }
 
-// Delete deletes a user
+// Delete 删除用户
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM users WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }
 
-// TenantRepository handles tenant data access
+// TenantRepository 处理租户数据访问
 type TenantRepository struct {
 	db *sql.DB
 }
 
-// NewTenantRepository creates a new tenant repository
+// NewTenantRepository 创建一个新的租户仓库
 func NewTenantRepository(db *sql.DB) *TenantRepository {
 	return &TenantRepository{db: db}
 }
 
-// Create creates a new tenant
+// Create 创建一个新租户
 func (r *TenantRepository) Create(ctx context.Context, tenant *Tenant) error {
 	query := `
 		INSERT INTO tenants (id, name, created_at, updated_at)
@@ -164,7 +164,7 @@ func (r *TenantRepository) Create(ctx context.Context, tenant *Tenant) error {
 	).Scan(&tenant.ID)
 }
 
-// GetByID retrieves a tenant by ID
+// GetByID 根据 ID 获取租户
 func (r *TenantRepository) GetByID(ctx context.Context, id uuid.UUID) (*Tenant, error) {
 	query := `
 		SELECT id, name, created_at, updated_at
@@ -184,17 +184,17 @@ func (r *TenantRepository) GetByID(ctx context.Context, id uuid.UUID) (*Tenant, 
 	return tenant, nil
 }
 
-// KnowledgeBaseRepository handles knowledge base data access
+// KnowledgeBaseRepository 处理知识库数据访问
 type KnowledgeBaseRepository struct {
 	db *sql.DB
 }
 
-// NewKnowledgeBaseRepository creates a new KB repository
+// NewKnowledgeBaseRepository 创建一个新的知识库仓库
 func NewKnowledgeBaseRepository(db *sql.DB) *KnowledgeBaseRepository {
 	return &KnowledgeBaseRepository{db: db}
 }
 
-// Create creates a new knowledge base
+// Create 创建一个新知识库
 func (r *KnowledgeBaseRepository) Create(ctx context.Context, kb *KnowledgeBase) error {
 	query := `
 		INSERT INTO knowledge_bases (id, tenant_id, owner_id, name, description, rag_type, created_at, updated_at)
@@ -213,7 +213,7 @@ func (r *KnowledgeBaseRepository) Create(ctx context.Context, kb *KnowledgeBase)
 	).Scan(&kb.ID)
 }
 
-// GetByID retrieves a knowledge base by ID
+// GetByID 根据 ID 获取知识库
 func (r *KnowledgeBaseRepository) GetByID(ctx context.Context, id uuid.UUID) (*KnowledgeBase, error) {
 	query := `
 		SELECT id, tenant_id, owner_id, name, description, rag_type, created_at, updated_at
@@ -237,7 +237,7 @@ func (r *KnowledgeBaseRepository) GetByID(ctx context.Context, id uuid.UUID) (*K
 	return kb, nil
 }
 
-// GetByTenant retrieves all knowledge bases for a tenant
+// GetByTenant 获取租户的所有知识库
 func (r *KnowledgeBaseRepository) GetByTenant(ctx context.Context, tenantID uuid.UUID) ([]*KnowledgeBase, error) {
 	query := `
 		SELECT id, tenant_id, owner_id, name, description, rag_type, created_at, updated_at
@@ -272,7 +272,7 @@ func (r *KnowledgeBaseRepository) GetByTenant(ctx context.Context, tenantID uuid
 	return kbs, rows.Err()
 }
 
-// Update updates an existing knowledge base
+// Update 更新现有知识库
 func (r *KnowledgeBaseRepository) Update(ctx context.Context, kb *KnowledgeBase) error {
 	query := `
 		UPDATE knowledge_bases
@@ -289,24 +289,24 @@ func (r *KnowledgeBaseRepository) Update(ctx context.Context, kb *KnowledgeBase)
 	return err
 }
 
-// Delete deletes a knowledge base
+// Delete 删除知识库
 func (r *KnowledgeBaseRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM knowledge_bases WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }
 
-// DocumentRepository handles document data access
+// DocumentRepository 处理文档数据访问
 type DocumentRepository struct {
 	db *sql.DB
 }
 
-// NewDocumentRepository creates a new document repository
+// NewDocumentRepository 创建一个新的文档仓库
 func NewDocumentRepository(db *sql.DB) *DocumentRepository {
 	return &DocumentRepository{db: db}
 }
 
-// Create creates a new document
+// Create 创建一个新文档
 func (r *DocumentRepository) Create(ctx context.Context, doc *Document) error {
 	query := `
 		INSERT INTO documents (id, tenant_id, kb_id, filename, file_path, file_size, mime_type, status, created_at, updated_at)
@@ -327,7 +327,7 @@ func (r *DocumentRepository) Create(ctx context.Context, doc *Document) error {
 	).Scan(&doc.ID)
 }
 
-// GetByID retrieves a document by ID
+// GetByID 根据 ID 获取文档
 func (r *DocumentRepository) GetByID(ctx context.Context, id uuid.UUID) (*Document, error) {
 	query := `
 		SELECT id, tenant_id, kb_id, filename, file_path, file_size, mime_type, status, error_message, metadata, created_at, updated_at
@@ -353,14 +353,14 @@ func (r *DocumentRepository) GetByID(ctx context.Context, id uuid.UUID) (*Docume
 	if err != nil {
 		return nil, err
 	}
-	// Parse metadata JSON if present
+	// 如果存在，解析 metadata JSON
 	if metadata != nil {
-		// TODO: Parse JSONB metadata
+		// TODO: 解析 JSONB metadata
 	}
 	return doc, nil
 }
 
-// GetByKB retrieves all documents for a knowledge base
+// GetByKB 获取知识库的所有文档
 func (r *DocumentRepository) GetByKB(ctx context.Context, kbID uuid.UUID) ([]*Document, error) {
 	query := `
 		SELECT id, tenant_id, kb_id, filename, file_path, file_size, mime_type, status, error_message, created_at, updated_at
@@ -398,7 +398,7 @@ func (r *DocumentRepository) GetByKB(ctx context.Context, kbID uuid.UUID) ([]*Do
 	return docs, rows.Err()
 }
 
-// UpdateStatus updates document status
+// UpdateStatus 更新文档状态
 func (r *DocumentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status DocumentStatus, errorMsg *string) error {
 	query := `
 		UPDATE documents
@@ -409,24 +409,24 @@ func (r *DocumentRepository) UpdateStatus(ctx context.Context, id uuid.UUID, sta
 	return err
 }
 
-// Delete deletes a document
+// Delete 删除文档
 func (r *DocumentRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM documents WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }
 
-// ChatSessionRepository handles chat session data access
+// ChatSessionRepository 处理聊天会话数据访问
 type ChatSessionRepository struct {
 	db *sql.DB
 }
 
-// NewChatSessionRepository creates a new chat session repository
+// NewChatSessionRepository 创建一个新的聊天会话仓库
 func NewChatSessionRepository(db *sql.DB) *ChatSessionRepository {
 	return &ChatSessionRepository{db: db}
 }
 
-// Create creates a new chat session
+// Create 创建一个新聊天会话
 func (r *ChatSessionRepository) Create(ctx context.Context, session *ChatSession) error {
 	query := `
 		INSERT INTO chat_sessions (id, tenant_id, kb_id, user_id, title, created_at, updated_at)
@@ -444,7 +444,7 @@ func (r *ChatSessionRepository) Create(ctx context.Context, session *ChatSession
 	).Scan(&session.ID)
 }
 
-// GetByID retrieves a chat session by ID
+// GetByID 根据 ID 获取聊天会话
 func (r *ChatSessionRepository) GetByID(ctx context.Context, id uuid.UUID) (*ChatSession, error) {
 	query := `
 		SELECT id, tenant_id, kb_id, user_id, title, created_at, updated_at
@@ -467,7 +467,7 @@ func (r *ChatSessionRepository) GetByID(ctx context.Context, id uuid.UUID) (*Cha
 	return session, nil
 }
 
-// GetByKB retrieves all sessions for a knowledge base
+// GetByKB 获取知识库的所有会话
 func (r *ChatSessionRepository) GetByKB(ctx context.Context, kbID uuid.UUID) ([]*ChatSession, error) {
 	query := `
 		SELECT id, tenant_id, kb_id, user_id, title, created_at, updated_at
@@ -501,24 +501,24 @@ func (r *ChatSessionRepository) GetByKB(ctx context.Context, kbID uuid.UUID) ([]
 	return sessions, rows.Err()
 }
 
-// Delete deletes a chat session
+// Delete 删除聊天会话
 func (r *ChatSessionRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM chat_sessions WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }
 
-// MessageRepository handles message data access
+// MessageRepository 处理消息数据访问
 type MessageRepository struct {
 	db *sql.DB
 }
 
-// NewMessageRepository creates a new message repository
+// NewMessageRepository 创建一个新的消息仓库
 func NewMessageRepository(db *sql.DB) *MessageRepository {
 	return &MessageRepository{db: db}
 }
 
-// Create creates a new message
+// Create 创建一个新消息
 func (r *MessageRepository) Create(ctx context.Context, msg *Message) error {
 	query := `
 		INSERT INTO messages (id, session_id, role, content, created_at)
@@ -534,7 +534,7 @@ func (r *MessageRepository) Create(ctx context.Context, msg *Message) error {
 	).Scan(&msg.ID)
 }
 
-// GetBySession retrieves all messages for a session
+// GetBySession 获取会话的所有消息
 func (r *MessageRepository) GetBySession(ctx context.Context, sessionID uuid.UUID) ([]*Message, error) {
 	query := `
 		SELECT id, session_id, role, content, created_at
@@ -566,7 +566,7 @@ func (r *MessageRepository) GetBySession(ctx context.Context, sessionID uuid.UUI
 	return messages, rows.Err()
 }
 
-// DeleteBySession deletes all messages for a session
+// DeleteBySession 删除会话的所有消息
 func (r *MessageRepository) DeleteBySession(ctx context.Context, sessionID uuid.UUID) error {
 	query := `DELETE FROM messages WHERE session_id = $1`
 	_, err := r.db.ExecContext(ctx, query, sessionID)

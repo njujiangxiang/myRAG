@@ -12,14 +12,14 @@ import (
 	"myrag/internal/qdrant"
 )
 
-// SearchHandler handles search requests
+// SearchHandler 处理搜索请求
 type SearchHandler struct {
 	docRepo   *models.DocumentRepository
 	qdrant    *qdrant.Client
 	embedding *embedding.Client
 }
 
-// NewSearchHandler creates a new search handler
+// NewSearchHandler 创建一个新的搜索处理器
 func NewSearchHandler(docRepo *models.DocumentRepository, qdrantClient *qdrant.Client, embeddingClient *embedding.Client) *SearchHandler {
 	return &SearchHandler{
 		docRepo:   docRepo,
@@ -28,13 +28,13 @@ func NewSearchHandler(docRepo *models.DocumentRepository, qdrantClient *qdrant.C
 	}
 }
 
-// SearchRequest represents a search request
+// SearchRequest 表示搜索请求
 type SearchRequest struct {
 	Query string `form:"query" binding:"required"`
 	Limit int    `form:"limit" binding:"omitempty,min=1,max=100"`
 }
 
-// SearchResult represents a search result
+// SearchResult 表示搜索结果
 type SearchResult struct {
 	DocumentID uuid.UUID `json:"document_id"`
 	Filename   string    `json:"filename"`
@@ -43,21 +43,21 @@ type SearchResult struct {
 	Metadata   ChunkMeta `json:"metadata,omitempty"`
 }
 
-// ChunkMeta represents chunk metadata
+// ChunkMeta 表示片段元数据
 type ChunkMeta struct {
 	ChunkIndex int       `json:"chunk_index"`
 	Page       *int      `json:"page,omitempty"`
 	Source     string    `json:"source"`
 }
 
-// SearchResponse represents a search response
+// SearchResponse 表示搜索响应
 type SearchResponse struct {
 	Results    []SearchResult `json:"results"`
 	Total      int            `json:"total"`
 	DurationMs int64          `json:"duration_ms"`
 }
 
-// Search handles searching documents in a knowledge base
+// Search 处理知识库文档搜索
 // GET /api/v1/kbs/:id/search
 func (h *SearchHandler) Search(c *gin.Context) {
 	kbIDStr := c.Param("id")
@@ -84,21 +84,21 @@ func (h *SearchHandler) Search(c *gin.Context) {
 
 	startTime := time.Now()
 
-	// Get tenant ID from context
+	// 从上下文中获取租户 ID
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
 		return
 	}
 
-	// Generate embedding for the query
+	// 生成查询的嵌入向量
 	queryVector, err := h.embedding.GenerateEmbedding(c.Request.Context(), req.Query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate query embedding"})
 		return
 	}
 
-	// Search in Qdrant
+	// 在 Qdrant 中搜索
 	results, err := h.qdrant.Search(c.Request.Context(), qdrant.SearchRequest{
 		QueryVector: queryVector,
 		TenantID:    tenantID,
@@ -110,7 +110,7 @@ func (h *SearchHandler) Search(c *gin.Context) {
 		return
 	}
 
-	// Convert results
+	// 转换结果
 	searchResults := make([]SearchResult, len(results))
 	for i, r := range results {
 		searchResults[i] = SearchResult{
@@ -131,7 +131,7 @@ func (h *SearchHandler) Search(c *gin.Context) {
 	})
 }
 
-// HybridSearchRequest represents a hybrid search request (vector + keyword)
+// HybridSearchRequest 表示混合搜索请求（向量 + 关键词）
 type HybridSearchRequest struct {
 	Query     string  `json:"query" binding:"required"`
 	Limit     int     `json:"limit" binding:"omitempty,min=1,max=100"`
@@ -140,7 +140,7 @@ type HybridSearchRequest struct {
 	WithGraph bool    `json:"with_graph" binding:"omitempty"`
 }
 
-// HybridSearch handles hybrid search (vector + keyword + graph)
+// HybridSearch 处理混合搜索（向量 + 关键词 + 图谱）
 // POST /api/v1/kbs/:id/search/hybrid
 func (h *SearchHandler) HybridSearch(c *gin.Context) {
 	kbIDStr := c.Param("id")
@@ -156,13 +156,13 @@ func (h *SearchHandler) HybridSearch(c *gin.Context) {
 		return
 	}
 
-	// Default weights
+	// 默认权重
 	if req.VectorW == 0 && req.KeywordW == 0 {
 		req.VectorW = 0.6
 		req.KeywordW = 0.4
 	}
 
-	// Get tenant ID from context
+	// 从上下文中获取租户 ID
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
@@ -171,14 +171,14 @@ func (h *SearchHandler) HybridSearch(c *gin.Context) {
 
 	startTime := time.Now()
 
-	// Generate embedding for the query
+	// 生成查询的嵌入向量
 	queryVector, err := h.embedding.GenerateEmbedding(c.Request.Context(), req.Query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate query embedding"})
 		return
 	}
 
-	// Vector search in Qdrant
+	// 在 Qdrant 中进行向量搜索
 	vectorResults, err := h.qdrant.Search(c.Request.Context(), qdrant.SearchRequest{
 		QueryVector: queryVector,
 		TenantID:    tenantID,
@@ -190,8 +190,8 @@ func (h *SearchHandler) HybridSearch(c *gin.Context) {
 		return
 	}
 
-	// For now, return vector results with weighted scores
-	// TODO: Implement BM25 keyword search and fuse results
+	// 暂时返回带有权重分数的向量结果
+	// TODO: 实现 BM25 关键词搜索并融合结果
 	searchResults := make([]SearchResult, len(vectorResults))
 	for i, r := range vectorResults {
 		searchResults[i] = SearchResult{
@@ -212,12 +212,12 @@ func (h *SearchHandler) HybridSearch(c *gin.Context) {
 	})
 }
 
-// GraphSearchRequest represents a graph search request
+// GraphSearchRequest 表示图谱搜索请求
 type GraphSearchRequest struct {
 	Query string `json:"query" binding:"required"`
 }
 
-// GraphSearchResult represents a graph search result
+// GraphSearchResult 表示图谱搜索结果
 type GraphSearchResult struct {
 	EntityType    string                 `json:"entity_type"`
 	EntityName    string                 `json:"entity_name"`
@@ -227,14 +227,14 @@ type GraphSearchResult struct {
 	Metadata      map[string]any         `json:"metadata,omitempty"`
 }
 
-// RelationshipResult represents a relationship in graph search
+// RelationshipResult 表示图谱搜索中的关系
 type RelationshipResult struct {
 	Source      string `json:"source"`
 	Target      string `json:"target"`
 	Description string `json:"description"`
 }
 
-// GraphSearch handles graph-based search
+// GraphSearch 处理基于图谱的搜索
 // POST /api/v1/kbs/:id/search/graph
 func (h *SearchHandler) GraphSearch(c *gin.Context) {
 	kbIDStr := c.Param("id")
@@ -250,15 +250,15 @@ func (h *SearchHandler) GraphSearch(c *gin.Context) {
 		return
 	}
 
-	// Get tenant ID from context
+	// 从上下文中获取租户 ID
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
 		return
 	}
 
-	// Graph search is a v1.1 features
-	// For now, return vector search results as fallback
+	// 图谱搜索是 v1.1 功能
+	// 暂时返回向量搜索结果作为降级
 	queryVector, err := h.embedding.GenerateEmbedding(c.Request.Context(), req.Query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate query embedding"})
@@ -276,7 +276,7 @@ func (h *SearchHandler) GraphSearch(c *gin.Context) {
 		return
 	}
 
-	// Convert to graph search results (placeholder)
+	// 转换为图谱搜索结果（占位符）
 	graphResults := make([]GraphSearchResult, len(results))
 	for i, r := range results {
 		graphResults[i] = GraphSearchResult{

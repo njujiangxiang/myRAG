@@ -5,9 +5,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// Helper functions for common handler patterns
+// 辅助函数，用于常见的 handler 模式
 
-// GetTenantID extracts and validates tenant ID from gin context
+// GetTenantID 从 gin 上下文中提取并验证租户 ID
 func GetTenantID(c *gin.Context) (uuid.UUID, bool) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
@@ -20,7 +20,7 @@ func GetTenantID(c *gin.Context) (uuid.UUID, bool) {
 	return u, true
 }
 
-// GetUserID extracts and validates user ID from gin context
+// GetUserID 从 gin 上下文中提取并验证用户 ID
 func GetUserID(c *gin.Context) (uuid.UUID, bool) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -33,13 +33,13 @@ func GetUserID(c *gin.Context) (uuid.UUID, bool) {
 	return u, true
 }
 
-// ParseUUIDParam parses a UUID from a URL parameter
+// ParseUUIDParam 从 URL 参数解析 UUID
 func ParseUUIDParam(c *gin.Context, paramName string) (uuid.UUID, error) {
 	idStr := c.Param(paramName)
 	return uuid.Parse(idStr)
 }
 
-// VerifyTenantOwnership checks if the resource belongs to the tenant
+// VerifyTenantOwnership 检查资源是否属于该租户
 func VerifyTenantOwnership(resourceTenantID, requestTenantID uuid.UUID) bool {
 	return resourceTenantID == requestTenantID
 }

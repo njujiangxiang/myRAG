@@ -18,7 +18,7 @@ import (
 	"myrag/internal/rag"
 )
 
-// ChatHandler handles chat requests
+// ChatHandler 处理聊天请求
 type ChatHandler struct {
 	sessionRepo *models.ChatSessionRepository
 	messageRepo *models.MessageRepository
@@ -32,7 +32,7 @@ type ChatHandler struct {
 	llmBaseURL  string
 }
 
-// NewChatHandler creates a new chat handler
+// NewChatHandler 创建一个新的聊天处理器
 func NewChatHandler(
 	sessionRepo *models.ChatSessionRepository,
 	messageRepo *models.MessageRepository,
@@ -63,13 +63,13 @@ func NewChatHandler(
 	}
 }
 
-// CreateChatRequest represents a chat request
+// CreateChatRequest 表示聊天请求
 type CreateChatRequest struct {
 	Title   *string `json:"title,omitempty"`
 	Content string  `json:"content" binding:"required"`
 }
 
-// ChatMessage represents a chat message in response
+// ChatMessage 表示响应中的聊天消息
 type ChatMessage struct {
 	ID        uuid.UUID      `json:"id"`
 	Role      string         `json:"role"`
@@ -78,7 +78,7 @@ type ChatMessage struct {
 	CreatedAt time.Time      `json:"created_at"`
 }
 
-// ChatSessionResult represents a chat session in response
+// ChatSessionResult 表示响应中的聊天会话
 type ChatSessionResult struct {
 	ID        uuid.UUID  `json:"id"`
 	KBID      uuid.UUID  `json:"kb_id"`
@@ -88,14 +88,14 @@ type ChatSessionResult struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
-// ChatResponse represents a chat response with SSE streaming support
+// ChatResponse 表示聊天响应（支持 SSE 流式传输）
 type ChatResponse struct {
 	MessageID uuid.UUID      `json:"message_id"`
 	Content   string         `json:"content"`
 	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
-// Chat handles chat with a knowledge base
+// Chat 处理知识库聊天
 // POST /api/v1/kbs/:id/chat
 func (h *ChatHandler) Chat(c *gin.Context) {
 	kbIDStr := c.Param("id")
@@ -111,7 +111,7 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	// Get user and tenant from context
+	// 从上下文中获取用户和租户
 	userID, ok := GetUserID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user context missing"})
@@ -124,7 +124,7 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	// Verify KB belongs to tenant
+	// 验证 KB 属于租户
 	kb, err := h.kbRepo.GetByID(c.Request.Context(), kbID)
 	if err != nil || kb == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "knowledge base not found"})
@@ -150,7 +150,7 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	// Save user message
+	// 保存用户消息
 	userMsg := &models.Message{
 		ID:        uuid.New(),
 		SessionID: session.ID,
@@ -164,7 +164,7 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	// Get RAG strategy based on KB type
+	// 根据 KB 类型获取 RAG 策略
 	strategy, err := h.ragFactory.GetStrategyByKB(c.Request.Context(), kbID, tenantID, h.kbRepo)
 	if err != nil {
 		errorMsg := fmt.Sprintf("failed to get RAG strategy: %v", err)
@@ -179,7 +179,7 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	// RAG: Search for relevant chunks using the strategy
+	// RAG：使用策略搜索相关片段
 	searchResults, err := strategy.Search(c.Request.Context(), req.Content, kbID, tenantID, 5)
 	if err != nil {
 		errorMsg := fmt.Sprintf("search failed: %v", err)
@@ -194,7 +194,7 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	// Build context from search results
+	// 从搜索结果构建上下文
 	var contextBuilder bytes.Buffer
 	contextBuilder.WriteString("Based on the following information from the knowledge base:\n\n")
 	sources := make([]string, 0, len(searchResults))
@@ -204,13 +204,13 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 	}
 	contextBuilder.WriteString("\n---\n\n")
 
-	// Build messages for LLM
+	// 为 LLM 构建消息
 	messages := []map[string]string{
 		{"role": "system", "content": "You are a helpful assistant answering questions based on the provided context. Only use information from the context to answer. If the context doesn't contain enough information, say so."},
 		{"role": "user", "content": contextBuilder.String() + req.Content},
 	}
 
-	// Generate response using LLM
+	// 使用 LLM 生成响应
 	response, err := h.generateLLMResponse(c.Request.Context(), messages)
 	if err != nil {
 		_ = h.messageRepo.Create(c.Request.Context(), &models.Message{
@@ -224,7 +224,7 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	// Save assistant message
+	// 保存助手消息
 	assistantMsg := &models.Message{
 		ID:        uuid.New(),
 		SessionID: session.ID,
@@ -246,7 +246,7 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 	})
 }
 
-// generateLLMResponse generates a response using the LLM API
+// generateLLMResponse 使用 LLM API 生成响应
 func (h *ChatHandler) generateLLMResponse(ctx context.Context, messages []map[string]string) (string, error) {
 	reqBody := map[string]any{
 		"model":    h.llmModel,
@@ -297,10 +297,10 @@ func (h *ChatHandler) generateLLMResponse(ctx context.Context, messages []map[st
 	return result.Choices[0].Message.Content, nil
 }
 
-// ChatStream handles chat with SSE streaming
+// ChatStream 处理 SSE 流式聊天
 // GET /api/v1/kbs/:id/chat/stream
 func (h *ChatHandler) ChatStream(c *gin.Context) {
-	// Set SSE headers
+	// 设置 SSE 头
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
@@ -313,7 +313,7 @@ func (h *ChatHandler) ChatStream(c *gin.Context) {
 	})
 }
 
-// ListSessions handles listing chat sessions for a knowledge base
+// ListSessions 处理列出知识库的聊天会话
 // GET /api/v1/kbs/:id/sessions
 func (h *ChatHandler) ListSessions(c *gin.Context) {
 	kbIDStr := c.Param("id")
@@ -344,7 +344,7 @@ func (h *ChatHandler) ListSessions(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
-// GetSessionMessages handles getting messages for a session
+// GetSessionMessages 处理获取会话消息
 // GET /api/v1/sessions/:id/messages
 func (h *ChatHandler) GetSessionMessages(c *gin.Context) {
 	idStr := c.Param("id")
@@ -374,7 +374,7 @@ func (h *ChatHandler) GetSessionMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
-// DeleteSession handles deleting a chat session
+// DeleteSession 处理删除聊天会话
 // DELETE /api/v1/sessions/:id
 func (h *ChatHandler) DeleteSession(c *gin.Context) {
 	idStr := c.Param("id")
@@ -384,7 +384,7 @@ func (h *ChatHandler) DeleteSession(c *gin.Context) {
 		return
 	}
 
-	// Delete messages first (cascade or manual)
+	// 先删除消息（级联或手动）
 	if err := h.messageRepo.DeleteBySession(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete messages"})
 		return

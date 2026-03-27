@@ -10,26 +10,26 @@ import (
 	"myrag/internal/models"
 )
 
-// KnowledgeBaseHandler handles knowledge base requests
+// KnowledgeBaseHandler 处理知识库请求
 type KnowledgeBaseHandler struct {
 	kbRepo *models.KnowledgeBaseRepository
 }
 
-// NewKnowledgeBaseHandler creates a new KB handler
+// NewKnowledgeBaseHandler 创建一个新的 KB 处理器
 func NewKnowledgeBaseHandler(kbRepo *models.KnowledgeBaseRepository) *KnowledgeBaseHandler {
 	return &KnowledgeBaseHandler{
 		kbRepo: kbRepo,
 	}
 }
 
-// CreateKBRequest represents a create KB request
+// CreateKBRequest 表示创建知识库请求
 type CreateKBRequest struct {
 	Name        string  `json:"name" binding:"required"`
 	Description *string `json:"description,omitempty"`
 	RAGType     string  `json:"rag_type,omitempty"` // vector, graph, hybrid, keyword
 }
 
-// KBResult represents knowledge base data in response
+// KBResult 表示响应中的知识库数据
 type KBResult struct {
 	ID          uuid.UUID  `json:"id"`
 	TenantID    uuid.UUID  `json:"tenant_id"`
@@ -41,7 +41,7 @@ type KBResult struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-// ListKBs handles listing knowledge bases for current tenant
+// ListKBs 列出当前租户的知识库
 // GET /api/v1/kbs
 func (h *KnowledgeBaseHandler) ListKBs(c *gin.Context) {
 	tenantID, ok := GetTenantID(c)
@@ -52,7 +52,7 @@ func (h *KnowledgeBaseHandler) ListKBs(c *gin.Context) {
 
 	kbs, err := h.kbRepo.GetByTenant(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list knowledge bases"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取知识库列表失败"})
 		return
 	}
 
@@ -72,17 +72,17 @@ func (h *KnowledgeBaseHandler) ListKBs(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
-// GetKB handles getting a single knowledge base
+// GetKB 获取单个知识库
 // GET /api/v1/kbs/:id
 func (h *KnowledgeBaseHandler) GetKB(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid knowledge base ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的知识库 ID"})
 		return
 	}
 
-	// Get tenant ID from context
+	// 从上下文中获取租户 ID
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
@@ -91,11 +91,11 @@ func (h *KnowledgeBaseHandler) GetKB(c *gin.Context) {
 
 	kb, err := h.kbRepo.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "knowledge base not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "知识库不存在"})
 		return
 	}
 
-	// Verify tenant ownership
+	// 验证租户所有权
 	if kb.TenantID != tenantID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
@@ -112,7 +112,7 @@ func (h *KnowledgeBaseHandler) GetKB(c *gin.Context) {
 	})
 }
 
-// CreateKB handles creating a new knowledge base
+// CreateKB 创建新知识库
 // POST /api/v1/kbs
 func (h *KnowledgeBaseHandler) CreateKB(c *gin.Context) {
 	var req CreateKBRequest
@@ -145,7 +145,7 @@ func (h *KnowledgeBaseHandler) CreateKB(c *gin.Context) {
 	}
 
 	if err := h.kbRepo.Create(c.Request.Context(), kb); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create knowledge base"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建知识库失败"})
 		return
 	}
 
@@ -160,17 +160,17 @@ func (h *KnowledgeBaseHandler) CreateKB(c *gin.Context) {
 	})
 }
 
-// UpdateKB handles updating a knowledge base
+// UpdateKB 更新知识库
 // PUT /api/v1/kbs/:id
 func (h *KnowledgeBaseHandler) UpdateKB(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid knowledge base ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的知识库 ID"})
 		return
 	}
 
-	// Get tenant ID from context
+	// 从上下文中获取租户 ID
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
@@ -185,11 +185,11 @@ func (h *KnowledgeBaseHandler) UpdateKB(c *gin.Context) {
 
 	kb, err := h.kbRepo.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "knowledge base not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "知识库不存在"})
 		return
 	}
 
-	// Verify tenant ownership
+	// 验证租户所有权
 	if kb.TenantID != tenantID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
@@ -201,7 +201,7 @@ func (h *KnowledgeBaseHandler) UpdateKB(c *gin.Context) {
 	kb.UpdatedAt = time.Now()
 
 	if err := h.kbRepo.Update(c.Request.Context(), kb); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update knowledge base"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新知识库失败"})
 		return
 	}
 
@@ -216,17 +216,17 @@ func (h *KnowledgeBaseHandler) UpdateKB(c *gin.Context) {
 	})
 }
 
-// DeleteKB handles deleting a knowledge base
+// DeleteKB 删除知识库
 // DELETE /api/v1/kbs/:id
 func (h *KnowledgeBaseHandler) DeleteKB(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid knowledge base ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的知识库 ID"})
 		return
 	}
 
-	// Get tenant ID from context
+	// 从上下文中获取租户 ID
 	tenantID, ok := GetTenantID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "tenant context missing"})
@@ -235,25 +235,25 @@ func (h *KnowledgeBaseHandler) DeleteKB(c *gin.Context) {
 
 	kb, err := h.kbRepo.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "knowledge base not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "知识库不存在"})
 		return
 	}
 
-	// Verify tenant ownership
+	// 验证租户所有权
 	if kb.TenantID != tenantID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
 
 	if err := h.kbRepo.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete knowledge base"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除知识库失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "knowledge base deleted"})
+	c.JSON(http.StatusOK, gin.H{"message": "知识库已删除"})
 }
 
-// kbResponse is a helper to format KB response
+// kbResponse 是格式化知识库响应的辅助函数
 func kbResponse(kb *models.KnowledgeBase) KBResult {
 	return KBResult{
 		ID:          kb.ID,
@@ -267,7 +267,7 @@ func kbResponse(kb *models.KnowledgeBase) KBResult {
 	}
 }
 
-// getRAGType returns a valid RAG type or default
+// getRAGType 返回有效的 RAG 类型，否则返回默认值
 func getRAGType(s string) string {
 	if s == "" {
 		return "vector"
@@ -278,5 +278,5 @@ func getRAGType(s string) string {
 			return s
 		}
 	}
-	return "vector" // Default to vector if invalid
+	return "vector" // 如果无效，默认为 vector
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Client handles embedding generation
+// Client 处理嵌入生成
 type Client struct {
 	apiKey     string
 	baseURL    string
@@ -18,14 +18,14 @@ type Client struct {
 	httpClient *http.Client
 }
 
-// Config holds embedding client configuration
+// Config 持有嵌入客户端配置
 type Config struct {
 	APIKey  string
 	BaseURL string
 	Model   string
 }
 
-// DefaultConfig returns default configuration
+// DefaultConfig 返回默认配置
 func DefaultConfig() Config {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
@@ -49,7 +49,7 @@ func DefaultConfig() Config {
 	}
 }
 
-// New creates a new embedding client
+// New 创建一个新的嵌入客户端
 func New(config Config) *Client {
 	return &Client{
 		apiKey:  config.APIKey,
@@ -61,13 +61,13 @@ func New(config Config) *Client {
 	}
 }
 
-// EmbeddingRequest represents an OpenAI embedding request
+// EmbeddingRequest 表示 OpenAI 嵌入请求
 type EmbeddingRequest struct {
 	Model string   `json:"model"`
 	Input []string `json:"input"`
 }
 
-// EmbeddingResponse represents an OpenAI embedding response
+// EmbeddingResponse 表示 OpenAI 嵌入响应
 type EmbeddingResponse struct {
 	Object string `json:"object"`
 	Data   []struct {
@@ -82,14 +82,14 @@ type EmbeddingResponse struct {
 	} `json:"usage"`
 }
 
-// GenerateEmbeddings generates embeddings for a batch of texts
+// GenerateEmbeddings 批量生成文本的嵌入向量
 func (c *Client) GenerateEmbeddings(ctx context.Context, texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
 		return [][]float32{}, nil
 	}
 
-	// OpenAI API supports up to 2048 batch size
-	// But we'll use a smaller batch size for reliability
+	// OpenAI API 支持最多 2048 的批量大小
+	// 我们使用较小的批量以提高可靠性
 	batchSize := 100
 	var allEmbeddings [][]float32
 
@@ -102,7 +102,7 @@ func (c *Client) GenerateEmbeddings(ctx context.Context, texts []string) ([][]fl
 		batch := texts[i:end]
 		embeddings, err := c.generateBatch(ctx, batch)
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate batch starting at index %d: %w", i, err)
+			return nil, fmt.Errorf("生成批量嵌入失败，起始索引 %d: %w", i, err)
 		}
 
 		allEmbeddings = append(allEmbeddings, embeddings...)
@@ -111,7 +111,7 @@ func (c *Client) GenerateEmbeddings(ctx context.Context, texts []string) ([][]fl
 	return allEmbeddings, nil
 }
 
-// generateBatch generates embeddings for a single batch
+// generateBatch 为单批文本生成嵌入向量
 func (c *Client) generateBatch(ctx context.Context, texts []string) ([][]float32, error) {
 	reqBody := EmbeddingRequest{
 		Model: c.model,
@@ -120,12 +120,12 @@ func (c *Client) generateBatch(ctx context.Context, texts []string) ([][]float32
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("序列化请求失败：%w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/embeddings", bytes.NewReader(jsonData))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("创建请求失败：%w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -133,7 +133,7 @@ func (c *Client) generateBatch(ctx context.Context, texts []string) ([][]float32
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return nil, fmt.Errorf("请求失败：%w", err)
 	}
 	defer resp.Body.Close()
 
@@ -145,17 +145,17 @@ func (c *Client) generateBatch(ctx context.Context, texts []string) ([][]float32
 			} `json:"error"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
-			return nil, fmt.Errorf("API error (status %d): failed to decode response", resp.StatusCode)
+			return nil, fmt.Errorf("API 错误（状态码 %d）：响应解码失败", resp.StatusCode)
 		}
-		return nil, fmt.Errorf("API error (status %d): %s - %s", resp.StatusCode, errResp.Error.Type, errResp.Error.Message)
+		return nil, fmt.Errorf("API 错误（状态码 %d）：%s - %s", resp.StatusCode, errResp.Error.Type, errResp.Error.Message)
 	}
 
 	var embResp EmbeddingResponse
 	if err := json.NewDecoder(resp.Body).Decode(&embResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, fmt.Errorf("响应解码失败：%w", err)
 	}
 
-	// Sort by index to ensure correct order
+	// 按索引排序以确保正确顺序
 	embeddings := make([][]float32, len(embResp.Data))
 	for _, item := range embResp.Data {
 		if item.Index >= 0 && item.Index < len(embeddings) {
@@ -166,19 +166,19 @@ func (c *Client) generateBatch(ctx context.Context, texts []string) ([][]float32
 	return embeddings, nil
 }
 
-// GenerateEmbedding generates a single embedding with retry logic
+// GenerateEmbedding 生成单个嵌入向量，带重试逻辑
 func (c *Client) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
 	embeddings, err := c.GenerateEmbeddings(ctx, []string{text})
 	if err != nil {
 		return nil, err
 	}
 	if len(embeddings) == 0 {
-		return nil, fmt.Errorf("no embedding returned")
+		return nil, fmt.Errorf("未返回嵌入向量")
 	}
 	return embeddings[0], nil
 }
 
-// GenerateWithRetry generates embeddings with exponential backoff retry
+// GenerateWithRetry 使用指数退避重试生成嵌入向量
 func (c *Client) GenerateWithRetry(ctx context.Context, texts []string, maxRetries int) ([][]float32, error) {
 	var lastErr error
 
@@ -190,30 +190,30 @@ func (c *Client) GenerateWithRetry(ctx context.Context, texts []string, maxRetri
 
 		lastErr = err
 
-		// Don't wait after the last attempt
+		// 最后一次尝试后不等待
 		if attempt < maxRetries {
 			waitTime := time.Duration(1<<uint(attempt)) * time.Second // 1s, 2s, 4s, ...
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			case <-time.After(waitTime):
-				// Continue to next retry
+				// 继续下一次重试
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("all retries failed: %w", lastErr)
+	return nil, fmt.Errorf("所有重试均失败：%w", lastErr)
 }
 
-// GetModel returns the current model name
+// GetModel 返回当前使用的模型名称
 func (c *Client) GetModel() string {
 	return c.model
 }
 
-// GetDimension returns the embedding dimension for the current model
+// GetDimension 返回当前模型的嵌入维度
 func (c *Client) GetDimension() int {
-	// text-embedding-3-small supports configurable dimensions
-	// Default is 1536
+	// text-embedding-3-small 支持可配置的维度
+	// 默认为 1536
 	switch c.model {
 	case "text-embedding-3-small":
 		return 1536

@@ -10,41 +10,41 @@ import (
 	"go.uber.org/zap"
 )
 
-// Client wraps NATS JetStream client
+// Client 封装 NATS JetStream 客户端
 type Client struct {
 	*nats.Conn
 	jetstream.JetStream
 	log *zap.Logger
 }
 
-// New creates a new NATS JetStream client
+// New 创建一个新的 NATS JetStream 客户端
 func New(url string, log *zap.Logger) (*Client, error) {
-	// Connect to NATS
+	// 连接到 NATS
 	nc, err := nats.Connect(url,
 		nats.ReconnectWait(2*time.Second),
 		nats.MaxReconnects(10),
 		nats.ReconnectHandler(func(nc *nats.Conn) {
-			log.Info("NATS reconnected")
+			log.Info("NATS 重连成功")
 		}),
 		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
-			log.Warn("NATS disconnected", zap.Error(err))
+			log.Warn("NATS 断开连接", zap.Error(err))
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
-			log.Warn("NATS connection closed")
+			log.Warn("NATS 连接已关闭")
 		}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to NATS: %w", err)
+		return nil, fmt.Errorf("连接 NATS 失败：%w", err)
 	}
 
-	// Create JetStream context
+	// 创建 JetStream 上下文
 	js, err := jetstream.New(nc)
 	if err != nil {
 		nc.Close()
-		return nil, fmt.Errorf("failed to create JetStream: %w", err)
+		return nil, fmt.Errorf("创建 JetStream 失败：%w", err)
 	}
 
-	log.Info("NATS JetStream connected", zap.String("url", url))
+	log.Info("NATS JetStream 已连接", zap.String("url", url))
 
 	return &Client{
 		Conn:      nc,
@@ -53,20 +53,20 @@ func New(url string, log *zap.Logger) (*Client, error) {
 	}, nil
 }
 
-// EnsureStream creates the documents stream if it doesn't exist
+// EnsureStream 创建 documents 流（如果不存在）
 func (c *Client) EnsureStream(ctx context.Context, streamName string) error {
-	// Check if stream exists
+	// 检查流是否存在
 	_, err := c.Stream(ctx, streamName)
 	if err == nil {
-		c.log.Info("NATS stream exists", zap.String("stream", streamName))
+		c.log.Info("NATS 流已存在", zap.String("stream", streamName))
 		return nil
 	}
 
 	if err != jetstream.ErrStreamNotFound {
-		return fmt.Errorf("failed to check stream: %w", err)
+		return fmt.Errorf("检查流失败：%w", err)
 	}
 
-	// Create stream
+	// 创建流
 	_, err = c.CreateStream(ctx, jetstream.StreamConfig{
 		Name:      streamName,
 		Subjects:  []string{"documents.>"},
@@ -75,32 +75,32 @@ func (c *Client) EnsureStream(ctx context.Context, streamName string) error {
 		Replicas:  1,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create stream: %w", err)
+		return fmt.Errorf("创建流失败：%w", err)
 	}
 
-	c.log.Info("NATS stream created", zap.String("stream", streamName))
+	c.log.Info("NATS 流已创建", zap.String("stream", streamName))
 	return nil
 }
 
-// PublishDocumentEvent publishes a document processing event
+// PublishDocumentEvent 发布文档处理事件
 func (c *Client) PublishDocumentEvent(ctx context.Context, eventType string, docID string, data []byte) error {
 	subject := fmt.Sprintf("documents.%s", eventType)
 
-	// Use JetStream Publish instead of embedded Conn.Publish
+	// 使用 JetStream Publish 而不是内置的 Conn.Publish
 	_, err := c.JetStream.Publish(ctx, subject, data)
 	if err != nil {
-		return fmt.Errorf("failed to publish event: %w", err)
+		return fmt.Errorf("发布事件失败：%w", err)
 	}
 
-	c.log.Debug("document event published",
+	c.log.Debug("文档事件已发布",
 		zap.String("subject", subject),
 		zap.String("doc_id", docID))
 
 	return nil
 }
 
-// Close gracefully closes the NATS connection
+// Close 优雅地关闭 NATS 连接
 func (c *Client) Close() {
-	c.log.Info("closing NATS connection")
+	c.log.Info("关闭 NATS 连接")
 	c.Conn.Close()
 }

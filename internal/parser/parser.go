@@ -9,28 +9,28 @@ import (
 	"github.com/ledongthuc/pdf"
 )
 
-// Parser handles document parsing for various formats
+// Parser 处理多种格式的文档解析
 type Parser struct{}
 
-// NewParser creates a new document parser
+// NewParser 创建一个新的文档解析器
 func NewParser() *Parser {
 	return &Parser{}
 }
 
-// ParseResult contains the parsed document content and metadata
+// ParseResult 包含解析后的文档内容和元数据
 type ParseResult struct {
 	Content string            `json:"content"`
 	Pages   []PageContent     `json:"pages,omitempty"`
 	Meta    map[string]string `json:"meta,omitempty"`
 }
 
-// PageContent represents content from a single page
+// PageContent 表示单页内容
 type PageContent struct {
 	Number int    `json:"number"`
 	Text   string `json:"text"`
 }
 
-// Parse parses document content based on MIME type
+// Parse 根据 MIME 类型解析文档内容
 func (p *Parser) Parse(data []byte, mimeType string) (*ParseResult, error) {
 	switch mimeType {
 	case "application/pdf":
@@ -40,23 +40,23 @@ func (p *Parser) Parse(data []byte, mimeType string) (*ParseResult, error) {
 	case "text/markdown", "text/plain":
 		return p.ParseText(data)
 	default:
-		// Try to parse as text
+		// 尝试作为文本解析
 		return p.ParseText(data)
 	}
 }
 
-// ParsePDF parses PDF documents using ledongthuc/pdf (pure Go)
+// ParsePDF 使用 ledongthuc/pdf (纯 Go) 解析 PDF 文档
 func (p *Parser) ParsePDF(data []byte) (*ParseResult, error) {
-	// Create PDF reader from memory
+	// 从内存创建 PDF reader
 	reader, err := pdf.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to open PDF: %w", err)
+		return nil, fmt.Errorf("打开 PDF 失败：%w", err)
 	}
 
 	var buf bytes.Buffer
 	var pages []PageContent
 
-	// Get number of pages
+	// 获取页数
 	numPages := reader.NumPage()
 	if numPages == 0 {
 		return &ParseResult{
@@ -66,7 +66,7 @@ func (p *Parser) ParsePDF(data []byte) (*ParseResult, error) {
 		}, nil
 	}
 
-	// Cache fonts for all pages
+	// 缓存所有页面的字体
 	fonts := make(map[string]*pdf.Font)
 	for i := 1; i <= numPages; i++ {
 		page := reader.Page(i)
@@ -78,12 +78,12 @@ func (p *Parser) ParsePDF(data []byte) (*ParseResult, error) {
 		}
 	}
 
-	// Extract text from each page
+	// 从每页提取文本
 	for i := 1; i <= numPages; i++ {
 		page := reader.Page(i)
 		text, err := page.GetPlainText(fonts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract text from page %d: %w", i, err)
+			return nil, fmt.Errorf("从第 %d 页提取文本失败：%w", i, err)
 		}
 
 		cleanText := strings.TrimSpace(text)
@@ -97,7 +97,7 @@ func (p *Parser) ParsePDF(data []byte) (*ParseResult, error) {
 		}
 	}
 
-	// If no pages were extracted, return empty result
+	// 如果没有提取到页面，返回空结果
 	if len(pages) == 0 {
 		return &ParseResult{
 			Content: "",
@@ -113,14 +113,14 @@ func (p *Parser) ParsePDF(data []byte) (*ParseResult, error) {
 	}, nil
 }
 
-// ParseCSV parses CSV documents
+// ParseCSV 解析 CSV 文档
 func (p *Parser) ParseCSV(data []byte) (*ParseResult, error) {
 	reader := csv.NewReader(bytes.NewReader(data))
-	reader.FieldsPerRecord = -1 // Allow variable field count
+	reader.FieldsPerRecord = -1 // 允许可变字段数
 
 	records, err := reader.ReadAll()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse CSV: %w", err)
+		return nil, fmt.Errorf("解析 CSV 失败：%w", err)
 	}
 
 	if len(records) == 0 {
@@ -130,23 +130,23 @@ func (p *Parser) ParseCSV(data []byte) (*ParseResult, error) {
 		}, nil
 	}
 
-	// Convert CSV to a readable format
+	// 将 CSV 转换为可读格式
 	var buf bytes.Buffer
 	headers := records[0]
 
-	// Write headers
-	buf.WriteString("Columns: ")
+	// 写入表头
+	buf.WriteString("列：")
 	buf.WriteString(strings.Join(headers, ", "))
 	buf.WriteString("\n\n")
 
-	// Write data rows as structured text
+	// 将数据行作为结构化文本写入
 	for i, record := range records[1:] {
-		buf.WriteString(fmt.Sprintf("Row %d:\n", i+1))
+		buf.WriteString(fmt.Sprintf("第 %d 行:\n", i+1))
 		for j, value := range record {
 			if j < len(headers) {
 				buf.WriteString(fmt.Sprintf("  %s: %s\n", headers[j], value))
 			} else {
-				buf.WriteString(fmt.Sprintf("  Field%d: %s\n", j, value))
+				buf.WriteString(fmt.Sprintf("  字段 %d: %s\n", j, value))
 			}
 		}
 		buf.WriteString("\n")
@@ -161,11 +161,11 @@ func (p *Parser) ParseCSV(data []byte) (*ParseResult, error) {
 	}, nil
 }
 
-// ParseText parses plain text and markdown documents
+// ParseText 解析纯文本和 Markdown 文档
 func (p *Parser) ParseText(data []byte) (*ParseResult, error) {
 	content := string(data)
 
-	// Count lines and words for metadata
+	// 统计行数和单词数用于元数据
 	lines := strings.Count(content, "\n") + 1
 	words := len(strings.Fields(content))
 
@@ -178,16 +178,16 @@ func (p *Parser) ParseText(data []byte) (*ParseResult, error) {
 	}, nil
 }
 
-// ChunkOptions defines how text should be chunked
+// ChunkOptions 定义文本分块方式
 type ChunkOptions struct {
-	MaxSize    int    // Maximum chunk size in characters
-	Overlap    int    // Overlap between chunks in characters
-	Separator  string // Separator for splitting (default: "\n\n")
-	MinSize    int    // Minimum chunk size (smaller chunks are merged)
-	KeepTables bool   // Try to keep tables together
+	MaxSize    int    // 最大块大小（字符数）
+	Overlap    int    // 块之间的重叠字符数
+	Separator  string // 分隔符（默认："\\n\\n"）
+	MinSize    int    // 最小块大小（小于该值的块会被合并）
+	KeepTables bool   // 尝试保持表格完整
 }
 
-// DefaultChunkOptions returns default chunk options
+// DefaultChunkOptions 返回默认分块选项
 func DefaultChunkOptions() *ChunkOptions {
 	return &ChunkOptions{
 		MaxSize:   4000,
@@ -197,7 +197,7 @@ func DefaultChunkOptions() *ChunkOptions {
 	}
 }
 
-// Chunk splits content into overlapping chunks for embedding
+// Chunk 将内容分割为重叠的块用于嵌入
 func (p *Parser) Chunk(content string, opts *ChunkOptions) []Chunk {
 	if opts == nil {
 		opts = DefaultChunkOptions()
@@ -217,7 +217,7 @@ func (p *Parser) Chunk(content string, opts *ChunkOptions) []Chunk {
 	for start < len(content) {
 		end := start + opts.MaxSize
 
-		// If we're at the end, just take the rest
+		// 如果在末尾，直接取剩余部分
 		if end >= len(content) {
 			chunkContent := strings.TrimSpace(content[start:])
 			if len(chunkContent) >= opts.MinSize {
@@ -229,14 +229,14 @@ func (p *Parser) Chunk(content string, opts *ChunkOptions) []Chunk {
 			break
 		}
 
-		// Try to split at a natural boundary
+		// 尝试在自然边界分割
 		remaining := content[start:end]
 		splitPos := strings.LastIndex(remaining, opts.Separator)
 
 		if splitPos > 0 {
 			end = start + splitPos
 		} else {
-			// Try splitting at sentence boundary
+			// 尝试在句子边界分割
 			splitPos = strings.LastIndex(remaining, ". ")
 			if splitPos > 0 {
 				end = start + splitPos + 1
@@ -252,13 +252,13 @@ func (p *Parser) Chunk(content string, opts *ChunkOptions) []Chunk {
 			index++
 		}
 
-		// Move start position with overlap
+		// 移动起始位置，带重叠
 		start = end - opts.Overlap
 		if start < 0 {
 			start = 0
 		}
 
-		// Prevent infinite loop
+		// 防止无限循环
 		if start >= len(content) {
 			break
 		}
@@ -267,7 +267,7 @@ func (p *Parser) Chunk(content string, opts *ChunkOptions) []Chunk {
 	return chunks
 }
 
-// Chunk represents a text chunk for embedding
+// Chunk 表示用于嵌入的文本块
 type Chunk struct {
 	Content string `json:"content"`
 	Index   int    `json:"index"`

@@ -14,39 +14,39 @@ import (
 	"go.uber.org/zap"
 )
 
-// DB wraps sql.DB with application-specific helpers
+// DB 封装 sql.DB，提供应用级辅助方法
 type DB struct {
 	*sql.DB
 	log *zap.Logger
 }
 
-// New creates a new database connection with migrations
+// New 创建一个新的数据库连接并执行迁移
 func New(postgresURL string, log *zap.Logger) (*DB, error) {
-	// Run migrations first
+	// 首先执行迁移
 	if err := runMigrations(postgresURL); err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
+		return nil, fmt.Errorf("执行迁移失败：%w", err)
 	}
 
-	// Create connection pool
+	// 创建连接池
 	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("打开数据库失败：%w", err)
 	}
 
-	// Configure connection pool
+	// 配置连接池
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Test connection
+	// 测试连接
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("连接数据库失败：%w", err)
 	}
 
-	log.Info("database connection established")
+	log.Info("数据库连接已建立")
 
 	return &DB{
 		DB:  db,
@@ -54,16 +54,16 @@ func New(postgresURL string, log *zap.Logger) (*DB, error) {
 	}, nil
 }
 
-// runMigrations runs database migrations by reading SQL files from the migrations directory
+// runMigrations 通过读取 migrations 目录的 SQL 文件执行数据库迁移
 func runMigrations(postgresURL string) error {
-	// Open database connection
+	// 打开数据库连接
 	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
-		return fmt.Errorf("failed to open database for migrations: %w", err)
+		return fmt.Errorf("打开数据库执行迁移失败：%w", err)
 	}
 	defer db.Close()
 
-	// Find migrations directory (try multiple paths for flexibility)
+	// 查找 migrations 目录（尝试多个路径以提高灵活性）
 	migrationsDir := ""
 	possiblePaths := []string{"migrations", "/app/migrations", "./migrations"}
 	for _, path := range possiblePaths {
@@ -73,16 +73,16 @@ func runMigrations(postgresURL string) error {
 		}
 	}
 	if migrationsDir == "" {
-		return fmt.Errorf("migrations directory not found")
+		return fmt.Errorf("未找到 migrations 目录")
 	}
 
-	// Read migration files
+	// 读取迁移文件
 	entries, err := os.ReadDir(migrationsDir)
 	if err != nil {
-		return fmt.Errorf("failed to read migrations directory: %w", err)
+		return fmt.Errorf("读取 migrations 目录失败：%w", err)
 	}
 
-	// Filter and sort SQL files
+	// 过滤并排序 SQL 文件
 	var sqlFiles []string
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") {
@@ -91,12 +91,12 @@ func runMigrations(postgresURL string) error {
 	}
 	sort.Strings(sqlFiles)
 
-	// Track applied migrations using a simple approach
-	// Check if migrations table exists
+	// 跟踪已应用的迁移（使用简单方法）
+	// 检查 migrations 表是否存在
 	_, err = db.Exec("SELECT 1 FROM schema_migrations LIMIT 1")
 	migrationsTableExists := err == nil
 
-	// Create migrations table if it doesn't exist
+	// 如果不存在，创建 migrations 表
 	if !migrationsTableExists {
 		_, err = db.Exec(`
 			CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -104,71 +104,71 @@ func runMigrations(postgresURL string) error {
 			)
 		`)
 		if err != nil {
-			return fmt.Errorf("failed to create migrations table: %w", err)
+			return fmt.Errorf("创建 migrations 表失败：%w", err)
 		}
 	}
 
-	// Apply each migration
+	// 应用每个迁移
 	for _, sqlFile := range sqlFiles {
-		// Extract version from filename (e.g., "001_init.sql" -> "001")
+		// 从文件名提取版本号（例如："001_init.sql" -> "001"）
 		version := strings.TrimSuffix(sqlFile, ".sql")
 		if idx := strings.Index(version, "_"); idx != -1 {
 			version = version[:idx]
 		}
 
-		// Check if already applied
+		// 检查是否已应用
 		var exists bool
 		err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)", version).Scan(&exists)
 		if err != nil {
-			return fmt.Errorf("failed to check migration status: %w", err)
+			return fmt.Errorf("检查迁移状态失败：%w", err)
 		}
 		if exists {
-			continue // Already applied
+			continue // 已应用
 		}
 
-		// Read and execute migration
+		// 读取并执行迁移
 		migrationPath := filepath.Join(migrationsDir, sqlFile)
 		migrationSQL, err := os.ReadFile(migrationPath)
 		if err != nil {
-			return fmt.Errorf("failed to read migration %s: %w", sqlFile, err)
+			return fmt.Errorf("读取迁移文件 %s 失败：%w", sqlFile, err)
 		}
 
-		// Execute migration in transaction
+		// 在事务中执行迁移
 		tx, err := db.Begin()
 		if err != nil {
-			return fmt.Errorf("failed to begin transaction: %w", err)
+			return fmt.Errorf("开始事务失败：%w", err)
 		}
 
 		_, err = tx.Exec(string(migrationSQL))
 		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to execute migration %s: %w", sqlFile, err)
+			return fmt.Errorf("执行迁移 %s 失败：%w", sqlFile, err)
 		}
 
-		// Record migration
+		// 记录迁移
 		_, err = tx.Exec("INSERT INTO schema_migrations (version) VALUES ($1)", version)
 		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to record migration %s: %w", sqlFile, err)
+			return fmt.Errorf("记录迁移 %s 失败：%w", sqlFile, err)
 		}
 
 		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("failed to commit migration %s: %w", sqlFile, err)
+			return fmt.Errorf("提交迁移 %s 失败：%w", sqlFile, err)
 		}
 	}
 
 	return nil
 }
 
-// WithTenant sets the tenant context for row-level security
+// WithTenant 为行级安全设置租户上下文
 func (db *DB) WithTenant(ctx context.Context, tenantID string) context.Context {
-	// This would set app.current_tenant for RLS
-	// Implementation depends on how you want to handle tenant context
+	// 这将设置 app.current_tenant 用于 RLS
+	// 实现取决于如何处理租户上下文
 	return ctx
 }
 
-// Close gracefully closes the database connection
+// Close 优雅地关闭数据库连接
 func (db *DB) Close() error {
-	db.log.Info("closing database connection")
+	db.log.Info("关闭数据库连接")
 	return db.DB.Close()
 }

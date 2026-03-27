@@ -29,32 +29,32 @@ func main() {
 	fmt.Println("myRAG - Knowledge Base with AI Chat")
 	fmt.Println("====================================")
 
-	// Initialize logger
+	// 初始化日志器
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
-	// Load configuration
+	// 加载配置
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Fatal("failed to load configuration", zap.Error(err))
 	}
 	logger.Info("configuration loaded", zap.String("env", cfg.Server.Env))
 
-	// Initialize database
+	// 初始化数据库
 	db, err := database.New(cfg.Database.URL, logger)
 	if err != nil {
 		logger.Fatal("failed to initialize database", zap.Error(err))
 	}
 	defer db.Close()
 
-	// Initialize Qdrant client
+	// 初始化 Qdrant 客户端
 	qdrantClient, err := qdrant.New(cfg.Qdrant.URL, cfg.Qdrant.APIKey, "documents", logger)
 	if err != nil {
 		logger.Fatal("failed to initialize Qdrant", zap.Error(err))
 	}
 	defer qdrantClient.Close()
 
-	// Initialize MinIO client
+	// 初始化 MinIO 客户端
 	minioClient, err := minio.New(
 		cfg.MinIO.Endpoint,
 		cfg.MinIO.AccessKey,
@@ -67,31 +67,31 @@ func main() {
 		logger.Fatal("failed to initialize MinIO", zap.Error(err))
 	}
 
-	// Initialize NATS client
+	// 初始化 NATS 客户端
 	natsClient, err := nats.New(cfg.NATS.URL, logger)
 	if err != nil {
 		logger.Fatal("failed to initialize NATS", zap.Error(err))
 	}
 	defer natsClient.Close()
 
-	// Ensure NATS stream exists
+	// 确保 NATS 流存在
 	if err := natsClient.EnsureStream(context.Background(), "documents"); err != nil {
 		logger.Warn("failed to ensure NATS stream", zap.Error(err))
 	}
 
-	// Initialize repositories
+	// 初始化仓库
 	userRepo := models.NewUserRepository(db.DB)
 	kbRepo := models.NewKnowledgeBaseRepository(db.DB)
 	docRepo := models.NewDocumentRepository(db.DB)
 	sessionRepo := models.NewChatSessionRepository(db.DB)
 	messageRepo := models.NewMessageRepository(db.DB)
 
-	// Initialize embedding client
+	// 初始化嵌入客户端
 	embeddingConfig := embedding.DefaultConfig()
 	embeddingClient := embedding.New(embeddingConfig)
 	logger.Info("embedding client initialized", zap.String("model", embeddingClient.GetModel()))
 
-	// Initialize RAG factory
+	// 初始化 RAG 工厂
 	bm25IndexPath := "./data/rag-index/bm25"
 	ragFactory := rag.NewFactory(rag.FactoryConfig{
 		QdrantClient:    qdrantClient,
@@ -110,7 +110,7 @@ func main() {
 	})
 	logger.Info("RAG factory initialized", zap.Any("strategies", ragFactory.ListStrategies()))
 
-	// Initialize handlers
+	// 初始化 handlers
 	authHandler := handler.NewAuthHandler(userRepo, cfg.JWT.Secret)
 	kbHandler := handler.NewKnowledgeBaseHandler(kbRepo)
 	docHandler := handler.NewDocumentHandler(docRepo, kbRepo, minioClient, natsClient, qdrantClient)
@@ -118,19 +118,19 @@ func main() {
 	globalChatHandler := handler.NewGlobalChatHandler(sessionRepo, messageRepo, kbRepo, qdrantClient, embeddingClient, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.Provider)
 	searchHandler := handler.NewSearchHandler(docRepo, qdrantClient, embeddingClient)
 
-	// Initialize and start document worker
+	// 初始化并启动文档 worker
 	docWorker, err := worker.NewWorker(docRepo, minioClient, qdrantClient, embeddingClient, natsClient.JetStream)
 	if err != nil {
 		logger.Fatal("failed to initialize document worker", zap.Error(err))
 	}
 	go docWorker.Start(context.Background())
 
-	// Setup Gin router
+	// 设置 Gin 路由
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
-	// Health check endpoint
+	// 健康检查端点
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":    "healthy",
@@ -138,10 +138,10 @@ func main() {
 		})
 	})
 
-	// API v1 routes
+	// API v1 路由
 	v1 := router.Group("/api/v1")
 	{
-		// Auth routes (no auth required)
+		// 认证路由（无需授权）
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/register", authHandler.Register)
@@ -150,31 +150,31 @@ func main() {
 			auth.GET("/me", handler.AuthMiddleware(cfg.JWT.Secret), authHandler.Me)
 		}
 
-		// Knowledge Base routes (auth required)
+		// 知识库路由（需要授权）
 		kbs := v1.Group("/kbs", handler.AuthMiddleware(cfg.JWT.Secret))
 		{
 			kbs.GET("", kbHandler.ListKBs)
 			kbs.POST("", kbHandler.CreateKB)
 
-			// :id routes must be first - most specific patterns with additional path segments
+			// :id 路由必须放在前面 - 最具体的带有额外路径段的路由
 			kbs.GET("/:id", kbHandler.GetKB)
 			kbs.PUT("/:id", kbHandler.UpdateKB)
 			kbs.DELETE("/:id", kbHandler.DeleteKB)
 
-			// Document routes under KB
+			// 知识库下的文档路由
 			docs := kbs.Group("/:id/docs")
 			{
 				docs.GET("", docHandler.ListDocuments)
 				docs.POST("", docHandler.UploadDocument)
 			}
 
-			// Chat routes under KB
+			// 知识库下的聊天路由
 			chat := kbs.Group("/:id/chat")
 			{
 				chat.POST("", chatHandler.Chat)
 			}
 
-			// Session routes under KB
+			// 知识库下的会话路由
 			sessions := kbs.Group("/:id/sessions")
 			{
 				sessions.GET("", chatHandler.ListSessions)
@@ -182,7 +182,7 @@ func main() {
 				sessions.DELETE("/:session_id", chatHandler.DeleteSession)
 			}
 
-			// Search routes under KB
+			// 知识库下的搜索路由
 			search := kbs.Group("/:id/search")
 			{
 				search.GET("", searchHandler.Search)
@@ -191,7 +191,7 @@ func main() {
 			}
 		}
 
-		// Document routes (auth required) - standalone document operations
+		// 文档路由（需要授权）- 独立文档操作
 		docs := v1.Group("/docs", handler.AuthMiddleware(cfg.JWT.Secret))
 		{
 			docs.GET("/:id", docHandler.GetDocument)
@@ -199,18 +199,18 @@ func main() {
 			docs.DELETE("/:id", docHandler.DeleteDocument)
 		}
 
-		// Session routes (auth required) - standalone session operations
+		// 会话路由（需要授权）- 独立会话操作
 		sessions := v1.Group("/sessions", handler.AuthMiddleware(cfg.JWT.Secret))
 		{
 			sessions.GET("/:id/messages", chatHandler.GetSessionMessages)
 			sessions.DELETE("/:id", chatHandler.DeleteSession)
 		}
 
-		// Global chat route (auth required) - cross-KB chat
+		// 全局聊天路由（需要授权）- 跨知识库聊天
 		v1.POST("/chat", handler.AuthMiddleware(cfg.JWT.Secret), globalChatHandler.Chat)
 	}
 
-	// Create HTTP server
+	// 创建 HTTP 服务器
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
 		Handler:      router,
@@ -219,7 +219,7 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server in goroutine
+	// 启动 HTTP 服务器（在 goroutine 中）
 	go func() {
 		logger.Info("starting HTTP server", zap.String("port", cfg.Server.Port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -227,14 +227,14 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal
+	// 等待中断信号
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	logger.Info("shutting down server...")
 
-	// Graceful shutdown with timeout
+	// 优雅关闭（带超时）
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

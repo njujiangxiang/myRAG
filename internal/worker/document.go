@@ -18,7 +18,7 @@ import (
 	"myrag/internal/qdrant"
 )
 
-// DocumentEvent represents a document processing event
+// DocumentEvent 表示文档处理事件
 type DocumentEvent struct {
 	DocID    uuid.UUID `json:"doc_id"`
 	TenantID uuid.UUID `json:"tenant_id"`
@@ -27,7 +27,7 @@ type DocumentEvent struct {
 	MimeType string    `json:"mime_type"`
 }
 
-// Worker handles background document processing
+// Worker 处理后台文档处理
 type Worker struct {
 	docRepo    *models.DocumentRepository
 	minio      *minio.Client
@@ -38,7 +38,7 @@ type Worker struct {
 	parser     *parser.Parser
 }
 
-// NewWorker creates a new document processing worker
+// NewWorker 创建一个新的文档处理 worker
 func NewWorker(
 	docRepo *models.DocumentRepository,
 	minioClient *minio.Client,
@@ -46,21 +46,21 @@ func NewWorker(
 	embeddingClient *embedding.Client,
 	js jetstream.JetStream,
 ) (*Worker, error) {
-	// Create or get consumer for documents stream
+	// 创建或获取 documents 流的 consumer
 	ctx := context.Background()
 
-	// Use EnsureStream which handles race conditions
+	// 使用 EnsureStream 处理竞态条件
 	if err := ensureDocumentStream(ctx, js, "documents"); err != nil {
-		return nil, fmt.Errorf("failed to ensure stream: %w", err)
+		return nil, fmt.Errorf("确保流存在失败：%w", err)
 	}
 
-	// Get stream
+	// 获取流
 	stream, err := js.Stream(ctx, "documents")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get stream: %w", err)
+		return nil, fmt.Errorf("获取流失败：%w", err)
 	}
 
-	// Create consumer
+	// 创建 consumer
 	consumer, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
 		Durable:       "document-processor",
 		FilterSubject: "documents.uploaded",
@@ -68,7 +68,7 @@ func NewWorker(
 		MaxAckPending: 10,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create consumer: %w", err)
+		return nil, fmt.Errorf("创建 consumer 失败：%w", err)
 	}
 
 	return &Worker{
@@ -82,20 +82,20 @@ func NewWorker(
 	}, nil
 }
 
-// ensureDocumentStream creates the documents stream if it doesn't exist
-// handles race condition when multiple workers start simultaneously
+// ensureDocumentStream 创建 documents 流（如果不存在）
+// 处理多个 worker 同时启动时的竞态条件
 func ensureDocumentStream(ctx context.Context, js jetstream.JetStream, streamName string) error {
-	// Check if stream exists
+	// 检查流是否存在
 	_, err := js.Stream(ctx, streamName)
 	if err == nil {
-		return nil // Stream exists
+		return nil // 流已存在
 	}
 
 	if err != jetstream.ErrStreamNotFound {
-		return fmt.Errorf("failed to check stream: %w", err)
+		return fmt.Errorf("检查流失败：%w", err)
 	}
 
-	// Try to create stream (may fail if another worker created it simultaneously)
+	// 尝试创建流（如果另一个 worker 同时创建了流，可能会失败）
 	_, err = js.CreateStream(ctx, jetstream.StreamConfig{
 		Name:      streamName,
 		Subjects:  []string{"documents.>"},
@@ -104,19 +104,19 @@ func ensureDocumentStream(ctx context.Context, js jetstream.JetStream, streamNam
 		Replicas:  1,
 	})
 	if err != nil {
-		// Check if stream was created by another worker
+		// 检查流是否被另一个 worker 创建
 		if _, getErr := js.Stream(ctx, streamName); getErr == nil {
-			return nil // Another worker created it
+			return nil // 另一个 worker 已创建
 		}
-		return fmt.Errorf("failed to create stream: %w", err)
+		return fmt.Errorf("创建流失败：%w", err)
 	}
 
 	return nil
 }
 
-// Start starts the worker processing loop
+// Start 启动 worker 处理循环
 func (w *Worker) Start(ctx context.Context) {
-	log.Println("document worker started")
+	log.Println("文档处理 worker 已启动")
 
 	maxRetries := 3
 	retryCount := make(map[uint64]int)
@@ -124,42 +124,42 @@ func (w *Worker) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("document worker stopped")
+			log.Println("文档处理 worker 已停止")
 			return
 		default:
-			// Fetch next message
+			// 获取下一条消息
 			batch, err := w.consumer.Fetch(1)
 			if err != nil {
 				if err == jetstream.ErrNoMessages {
 					time.Sleep(1 * time.Second)
 					continue
 				}
-				log.Printf("failed to fetch message: %v", err)
+				log.Printf("获取消息失败：%v", err)
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
-			// Iterate over batch
+			// 遍历批次
 			for msg := range batch.Messages() {
-				// Get message sequence number for tracking
+				// 获取消息序列号用于跟踪
 				meta, err := msg.Metadata()
 				if err != nil {
-					log.Printf("failed to get message metadata: %v", err)
+					log.Printf("获取消息元数据失败：%v", err)
 					continue
 				}
 				msgSeq := meta.Sequence.Stream
 
-				// Process message
+				// 处理消息
 				if err := w.processMessage(ctx, msg); err != nil {
-					log.Printf("failed to process message: %v", err)
-					// Track retry count
+					log.Printf("处理消息失败：%v", err)
+					// 跟踪重试次数
 					retryCount[msgSeq]++
 					if retryCount[msgSeq] >= maxRetries {
-						log.Printf("message exceeded max retries, acknowledging: %d", msgSeq)
+						log.Printf("消息超过最大重试次数，确认：%d", msgSeq)
 						_ = msg.Ack()
 						delete(retryCount, msgSeq)
 					} else {
-						// Nak for redelivery with delay
+						// Nak 以延迟重新交付
 						_ = msg.NakWithDelay(5 * time.Second)
 					}
 				}
@@ -168,43 +168,43 @@ func (w *Worker) Start(ctx context.Context) {
 	}
 }
 
-// processMessage processes a single document event
+// processMessage 处理单个文档事件
 func (w *Worker) processMessage(ctx context.Context, msg jetstream.Msg) error {
 	var event DocumentEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
-		return fmt.Errorf("failed to unmarshal event: %w", err)
+		return fmt.Errorf("反序列化事件失败：%w", err)
 	}
 
-	log.Printf("processing document: %s", event.DocID)
+	log.Printf("处理文档：%s", event.DocID)
 
-	// Update status to processing
+	// 更新状态为处理中
 	if err := w.docRepo.UpdateStatus(ctx, event.DocID, models.DocumentStatusProcessing, nil); err != nil {
-		return fmt.Errorf("failed to update status: %w", err)
+		return fmt.Errorf("更新状态失败：%w", err)
 	}
 
-	// Download file from MinIO
+	// 从 MinIO 下载文件
 	fileData, err := w.minio.GetFile(ctx, getObjectName(event.FilePath))
 	if err != nil {
-		errorMsg := fmt.Sprintf("failed to download file: %v", err)
+		errorMsg := fmt.Sprintf("下载文件失败：%v", err)
 		_ = w.docRepo.UpdateStatus(ctx, event.DocID, models.DocumentStatusError, &errorMsg)
-		return fmt.Errorf("failed to download file: %w", err)
+		return fmt.Errorf("下载文件失败：%w", err)
 	}
 
-	// Parse document
+	// 解析文档
 	parseResult, err := w.parser.Parse(fileData, event.MimeType)
 	if err != nil {
-		errorMsg := fmt.Sprintf("failed to parse document: %v", err)
+		errorMsg := fmt.Sprintf("解析文档失败：%v", err)
 		_ = w.docRepo.UpdateStatus(ctx, event.DocID, models.DocumentStatusError, &errorMsg)
-		return fmt.Errorf("failed to parse document: %w", err)
+		return fmt.Errorf("解析文档失败：%w", err)
 	}
 
-	log.Printf("document parsed: %s, content length: %d", event.DocID, len(parseResult.Content))
+	log.Printf("文档已解析：%s, 内容长度：%d", event.DocID, len(parseResult.Content))
 
-	// Chunk the content
+	// 将内容分块
 	chunks := w.parser.Chunk(parseResult.Content, parser.DefaultChunkOptions())
-	log.Printf("document chunked: %s, chunks: %d", event.DocID, len(chunks))
+	log.Printf("文档已分块：%s, 块数：%d", event.DocID, len(chunks))
 
-	// Generate embeddings for all chunks
+	// 为所有块生成嵌入向量
 	texts := make([]string, len(chunks))
 	for i, chunk := range chunks {
 		texts[i] = chunk.Content
@@ -212,17 +212,17 @@ func (w *Worker) processMessage(ctx context.Context, msg jetstream.Msg) error {
 
 	embeddings, err := w.embedding.GenerateEmbeddings(ctx, texts)
 	if err != nil {
-		errorMsg := fmt.Sprintf("failed to generate embeddings: %v", err)
+		errorMsg := fmt.Sprintf("生成嵌入向量失败：%v", err)
 		_ = w.docRepo.UpdateStatus(ctx, event.DocID, models.DocumentStatusError, &errorMsg)
-		return fmt.Errorf("failed to generate embeddings: %w", err)
+		return fmt.Errorf("生成嵌入向量失败：%w", err)
 	}
 
-	log.Printf("embeddings generated: %s, count: %d", event.DocID, len(embeddings))
+	log.Printf("嵌入向量已生成：%s, 数量：%d", event.DocID, len(embeddings))
 
-	// Prepare chunks for Qdrant
+	// 准备 Qdrant 块
 	qdrantChunks := make([]qdrant.Chunk, len(chunks))
 	for i, chunk := range chunks {
-		// Convert map[string]string to map[string]any
+		// 将 map[string]string 转换为 map[string]any
 		var metadata map[string]any
 		if parseResult.Meta != nil {
 			metadata = make(map[string]any, len(parseResult.Meta))
@@ -243,33 +243,33 @@ func (w *Worker) processMessage(ctx context.Context, msg jetstream.Msg) error {
 		}
 	}
 
-	// Store chunks in Qdrant
+	// 存储块到 Qdrant
 	if err := w.qdrant.UpsertChunks(ctx, qdrantChunks); err != nil {
-		errorMsg := fmt.Sprintf("failed to store embeddings: %v", err)
+		errorMsg := fmt.Sprintf("存储嵌入向量失败：%v", err)
 		_ = w.docRepo.UpdateStatus(ctx, event.DocID, models.DocumentStatusError, &errorMsg)
-		return fmt.Errorf("failed to store embeddings: %w", err)
+		return fmt.Errorf("存储嵌入向量失败：%w", err)
 	}
 
-	log.Printf("embeddings stored in qdrant: %s", event.DocID)
+	log.Printf("嵌入向量已存储到 Qdrant: %s", event.DocID)
 
-	// Mark as indexed
+	// 标记为已索引
 	if err := w.docRepo.UpdateStatus(ctx, event.DocID, models.DocumentStatusIndexed, nil); err != nil {
-		return fmt.Errorf("failed to update status: %w", err)
+		return fmt.Errorf("更新状态失败：%w", err)
 	}
 
-	log.Printf("document indexed successfully: %s", event.DocID)
+	log.Printf("文档索引成功：%s", event.DocID)
 
-	// Acknowledge message
+	// 确认消息
 	return msg.Ack()
 }
 
-// getObjectName extracts object name from file path
-// filePath format: "documents/tenant_id/kb_id/doc_id_filename" (bucket/objectKey)
-// The minio.GetFile already knows the bucket, so we need to extract just the object key
+// getObjectName 从文件路径提取对象名称
+// filePath 格式："documents/tenant_id/kb_id/doc_id_filename" (bucket/objectKey)
+// minio.GetFile 已经知道 bucket，所以我们需要提取对象键
 func getObjectName(filePath string) string {
-	// File path format from UploadFile: "documents/{objectKey}"
-	// We need to remove the bucket prefix ("documents/") to get the object key
-	// Find the first "/" and return everything after it
+	// UploadFile 返回的文件路径格式："documents/{objectKey}"
+	// 我们需要移除 bucket 前缀 ("documents/") 来获取对象键
+	// 找到第一个 "/" 并返回其后的所有内容
 	if idx := strings.Index(filePath, "/"); idx != -1 {
 		return filePath[idx+1:]
 	}
