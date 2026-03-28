@@ -99,6 +99,7 @@ func main() {
 		LLMAPIKey:       cfg.LLM.APIKey,
 		LLMModel:        cfg.LLM.Model,
 		LLMProvider:     cfg.LLM.Provider,
+		LLMBaseURL:      cfg.LLM.BaseURL,
 		BM25IndexPath:   bm25IndexPath,
 		Rerank: &rag.RerankConfig{
 			Enabled:    cfg.Rerank.Enabled,
@@ -114,8 +115,8 @@ func main() {
 	authHandler := handler.NewAuthHandler(userRepo, cfg.JWT.Secret)
 	kbHandler := handler.NewKnowledgeBaseHandler(kbRepo)
 	docHandler := handler.NewDocumentHandler(docRepo, kbRepo, minioClient, natsClient, qdrantClient)
-	chatHandler := handler.NewChatHandler(sessionRepo, messageRepo, kbRepo, qdrantClient, embeddingClient, ragFactory, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.Provider)
-	globalChatHandler := handler.NewGlobalChatHandler(sessionRepo, messageRepo, kbRepo, qdrantClient, embeddingClient, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.Provider)
+	chatHandler := handler.NewChatHandler(sessionRepo, messageRepo, kbRepo, qdrantClient, embeddingClient, ragFactory, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.Provider, cfg.LLM.BaseURL)
+	globalChatHandler := handler.NewGlobalChatHandler(sessionRepo, messageRepo, kbRepo, qdrantClient, embeddingClient, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.Provider, cfg.LLM.BaseURL)
 	searchHandler := handler.NewSearchHandler(docRepo, qdrantClient, embeddingClient)
 
 	// 初始化并启动文档 worker

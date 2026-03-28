@@ -151,10 +151,12 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 
 	// 验证文件类型
 	allowedMimeTypes := map[string]bool{
-		"application/pdf": true,
-		"text/csv":        true,
-		"text/markdown":   true,
-		"text/plain":      true,
+		"application/pdf":      true,
+		"text/csv":             true,
+		"text/markdown":        true,
+		"text/plain":           true,
+		"application/msword":               true,
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
 	}
 
 	contentType := header.Header.Get("Content-Type")
@@ -174,6 +176,10 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 				contentType = "text/plain"
 			case ".csv":
 				contentType = "text/csv"
+			case ".doc":
+				contentType = "application/msword"
+			case ".docx":
+				contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 			}
 		}
 

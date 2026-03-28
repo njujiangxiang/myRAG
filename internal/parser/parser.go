@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ledongthuc/pdf"
+	"github.com/nguyenthenguyen/docx"
 )
 
 // Parser 处理多种格式的文档解析
@@ -39,6 +40,8 @@ func (p *Parser) Parse(data []byte, mimeType string) (*ParseResult, error) {
 		return p.ParseCSV(data)
 	case "text/markdown", "text/plain":
 		return p.ParseText(data)
+	case "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+		return p.ParseWord(data)
 	default:
 		// 尝试作为文本解析
 		return p.ParseText(data)
@@ -178,6 +181,35 @@ func (p *Parser) ParseText(data []byte) (*ParseResult, error) {
 	}, nil
 }
 
+// ParseWord 解析 Word 文档 (.doc, .docx)
+func (p *Parser) ParseWord(data []byte) (*ParseResult, error) {
+	// 使用 docx 库解析
+	doc, err := docx.ReadDocxFromMemory(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, fmt.Errorf("打开 Word 文档失败：%w", err)
+	}
+	defer doc.Close()
+
+	// 提取文本内容
+	content := doc.Editable().GetContent()
+
+	// 清理无效 UTF-8 字符（Qdrant 要求所有字符串必须是有效的 UTF-8）
+	content = strings.ToValidUTF8(content, "")
+
+	// 统计元数据
+	words := len(strings.Fields(content))
+	paragraphs := strings.Count(content, "\n\n") + strings.Count(content, "\n") + 1
+
+	return &ParseResult{
+		Content: content,
+		Meta: map[string]string{
+			"type":       "word",
+			"words":      fmt.Sprintf("%d", words),
+			"paragraphs": fmt.Sprintf("%d", paragraphs),
+		},
+	}, nil
+}
+
 // ChunkOptions 定义文本分块方式
 type ChunkOptions struct {
 	MaxSize    int    // 最大块大小（字符数）
@@ -190,8 +222,8 @@ type ChunkOptions struct {
 // DefaultChunkOptions 返回默认分块选项
 func DefaultChunkOptions() *ChunkOptions {
 	return &ChunkOptions{
-		MaxSize:   4000,
-		Overlap:   200,
+		MaxSize:   500,    // bge-small 上下文长度为 512 tokens，留有余量
+		Overlap:   50,     // 重叠部分也相应减小
 		Separator: "\n\n",
 		MinSize:   100,
 	}
@@ -236,15 +268,19 @@ func (p *Parser) Chunk(content string, opts *ChunkOptions) []Chunk {
 		if splitPos > 0 {
 			end = start + splitPos
 		} else {
-			// 尝试在句子边界分割
+			// 尝试在句子边界分割，但确保不会退步太多
 			splitPos = strings.LastIndex(remaining, ". ")
-			if splitPos > 0 {
+			if splitPos > 0 && splitPos > opts.MaxSize/2 {
+				// 只有在后半部分找到句子边界才使用
 				end = start + splitPos + 1
 			}
+			// 否则保持 end = start + opts.MaxSize
 		}
 
 		chunkContent := strings.TrimSpace(content[start:end])
 		if len(chunkContent) >= opts.MinSize {
+			// 清理无效 UTF-8 字符
+			chunkContent = strings.ToValidUTF8(chunkContent, "")
 			chunks = append(chunks, Chunk{
 				Content: chunkContent,
 				Index:   index,
@@ -253,12 +289,15 @@ func (p *Parser) Chunk(content string, opts *ChunkOptions) []Chunk {
 		}
 
 		// 移动起始位置，带重叠
-		start = end - opts.Overlap
-		if start < 0 {
-			start = 0
+		newStart := end - opts.Overlap
+		// 确保至少前进 MaxSize - Overlap 的距离
+		minAdvance := opts.MaxSize - opts.Overlap
+		if newStart < start+minAdvance {
+			newStart = start + minAdvance
 		}
+		start = newStart
 
-		// 防止无限循环
+		// 防止超出范围
 		if start >= len(content) {
 			break
 		}

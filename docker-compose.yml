@@ -93,8 +93,8 @@ services:
       MINIO_BUCKET: documents
       MINIO_USE_SSL: "false"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-ollama}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-http://host.docker.internal:11434/v1}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-http://192.168.31.127:11434/v1}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-quentinz/bge-small-zh-v1.5:f32}
       LLM_MODEL: ${LLM_MODEL:-qwen3:8b}
       JWT_SECRET: ${JWT_SECRET:-myrag-development-secret-change-in-production}
       SERVER_PORT: 8080

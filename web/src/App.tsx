@@ -11,28 +11,47 @@ import FilesPage from '@/pages/FilesPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
 
-  if (!isAuthenticated) {
+  if (isLoading) {
     return (
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        width: '100vw'
+      }}>
+        <div style={{
+          fontSize: '16px',
+          color: '#666'
+        }}>
+          加载中...
+        </div>
+      </div>
     )
   }
 
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Navigate to="/kbs" replace />} />
-        <Route path="kbs" element={<KBListPage />} />
-        <Route path="kbs/:id" element={<KBDetailPage />} />
-        <Route path="kbs/:id/chat" element={<ChatPage />} />
-        <Route path="global-chat" element={<GlobalChatPage />} />
-        <Route path="files" element={<FilesPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-      </Route>
+      {!isAuthenticated ? (
+        <>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </>
+      ) : (
+        <>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Navigate to="/kbs" replace />} />
+            <Route path="kbs" element={<KBListPage />} />
+            <Route path="kbs/:id" element={<KBDetailPage />} />
+            <Route path="kbs/:id/chat" element={<ChatPage />} />
+            <Route path="global-chat" element={<GlobalChatPage />} />
+            <Route path="files" element={<FilesPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+        </>
+      )}
     </Routes>
   )
 }

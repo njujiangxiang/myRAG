@@ -25,10 +25,13 @@ type LLMClient struct {
 //   - apiKey: LLM API 密钥
 //   - model: 使用的模型名称
 //   - provider: 提供商名称（"openai" 或 "anthropic"）
-func NewLLMClient(apiKey, model, provider string) *LLMClient {
-	baseURL := "https://api.openai.com/v1"
-	if provider == "anthropic" {
-		baseURL = "https://api.anthropic.com/v1"
+//   - baseURL: API 基础 URL（可选，为空时使用默认值）
+func NewLLMClient(apiKey, model, provider, baseURL string) *LLMClient {
+	if baseURL == "" {
+		baseURL = "https://api.openai.com/v1"
+		if provider == "anthropic" {
+			baseURL = "https://api.anthropic.com/v1"
+		}
 	}
 
 	return &LLMClient{

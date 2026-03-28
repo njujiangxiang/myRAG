@@ -10,6 +10,7 @@ interface AuthContextType {
   user: User | null
   token: string | null
   isAuthenticated: boolean
+  isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
@@ -28,6 +29,7 @@ export function useAuth() {
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
@@ -42,6 +44,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('user')
       }
     }
+    setIsLoading(false)
   }, [])
 
   const login = async (email: string, password: string) => {
@@ -94,6 +97,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         token,
+        isLoading,
         isAuthenticated: !!token,
         login,
         register,

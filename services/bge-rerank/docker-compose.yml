@@ -9,18 +9,11 @@ services:
       - "8800:8800"
     environment:
       - BGE_MODEL=BAAI/bge-reranker-v2-m3
-      - BGE_DEVICE=cuda  # Change to 'cpu' if no GPU available
+      - BGE_DEVICE=cpu
       - BGE_HOST=0.0.0.0
       - BGE_PORT=8800
     volumes:
       - bge-cache:/root/.cache
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8800/health')"]

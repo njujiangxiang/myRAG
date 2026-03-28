@@ -56,7 +56,7 @@ func New(config Config) *Client {
 		baseURL: config.BaseURL,
 		model:   config.Model,
 		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 5 * time.Minute, // 增加超时时间以支持本地慢速模型
 		},
 	}
 }
@@ -88,9 +88,9 @@ func (c *Client) GenerateEmbeddings(ctx context.Context, texts []string) ([][]fl
 		return [][]float32{}, nil
 	}
 
-	// OpenAI API 支持最多 2048 的批量大小
-	// 我们使用较小的批量以提高可靠性
-	batchSize := 100
+	// 减小批量大小以避免请求过大导致超时
+	// 对于本地 Ollama 部署，使用较小的批量
+	batchSize := 10
 	var allEmbeddings [][]float32
 
 	for i := 0; i < len(texts); i += batchSize {

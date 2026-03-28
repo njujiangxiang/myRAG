@@ -78,16 +78,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// 获取或创建默认租户
-	tenantID := uuid.Nil // Will be set by middleware or use default
-	if tenantID == uuid.Nil {
-		// 对于单用户模式，使用预定义的租户
-		tenantID, _ = uuid.Parse("00000000-0000-0000-0000-000000000001")
-	}
+	// 为每个用户创建独立的租户（使用用户 ID 作为租户 ID）
+	userID := uuid.New()
+	tenantID := userID // 多租户隔离：每个用户有自己的租户
 
 	// 创建用户
 	user := &models.User{
-		ID:           uuid.New(),
+		ID:           userID,
 		TenantID:     tenantID,
 		Email:        req.Email,
 		PasswordHash: string(hashedPassword),

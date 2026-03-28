@@ -5,9 +5,17 @@ Compatible with FlagEmbedding: https://github.com/FlagOpen/FlagEmbedding
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Union
 import logging
 import os
+
+# Fix for FlagEmbedding compatibility issue
+# FlagEmbedding's trainer.py uses Optional without importing it
+import builtins
+if not hasattr(builtins, 'Optional'):
+    import typing
+    builtins.Optional = typing.Optional
+    builtins.Union = typing.Union
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -101,11 +109,10 @@ async def rerank(request: RerankRequest):
 
     try:
         # Compute scores using BGE reranker
-        # FlagReranker.compute_score returns a list of scores
-        scores = reranker.compute_score(
-            query=request.query,
-            passages=request.documents
-        )
+        # FlagReranker.compute_score expects (query, passage) pair or list of pairs
+        # Create pairs of query and each document
+        pairs = [[request.query, doc] for doc in request.documents]
+        scores = reranker.compute_score(pairs)
 
         # Handle single document case (returns float instead of list)
         if isinstance(scores, (float, int)):

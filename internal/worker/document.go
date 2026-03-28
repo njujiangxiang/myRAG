@@ -201,6 +201,7 @@ func (w *Worker) processMessage(ctx context.Context, msg jetstream.Msg) error {
 	log.Printf("文档已解析：%s, 内容长度：%d", event.DocID, len(parseResult.Content))
 
 	// 将内容分块
+	log.Printf("开始分块：%s", event.DocID)
 	chunks := w.parser.Chunk(parseResult.Content, parser.DefaultChunkOptions())
 	log.Printf("文档已分块：%s, 块数：%d", event.DocID, len(chunks))
 
@@ -210,6 +211,7 @@ func (w *Worker) processMessage(ctx context.Context, msg jetstream.Msg) error {
 		texts[i] = chunk.Content
 	}
 
+	log.Printf("开始生成嵌入向量：%s, 文本数：%d", event.DocID, len(texts))
 	embeddings, err := w.embedding.GenerateEmbeddings(ctx, texts)
 	if err != nil {
 		errorMsg := fmt.Sprintf("生成嵌入向量失败：%v", err)

@@ -6,9 +6,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-
-	"github.com/knadh/koanf/providers/env"
-	"github.com/knadh/koanf/v2"
 )
 
 // Config 持有所有配置
@@ -68,6 +65,7 @@ type LLMConfig struct {
 	Provider string `json:"provider"` // openai, anthropic, local
 	APIKey   string `json:"api_key"`
 	Model    string `json:"model"` // 例如：text-embedding-3-small
+	BaseURL  string `json:"base_url"` // LLM API 基础 URL
 }
 
 // JWTConfig 持有 JWT 认证配置
@@ -78,54 +76,44 @@ type JWTConfig struct {
 
 // Load 从环境变量读取配置
 func Load() (*Config, error) {
-	k := koanf.New(".")
-
-	// 从环境变量加载，使用 MYRAG_ 前缀
-	// 例如：MYRAG_SERVER_PORT=8080
-	if err := k.Load(env.Provider("MYRAG_", ".", func(s string) string {
-		// MYRAG_SERVER_PORT -> server.port
-		return s[5:]
-	}), nil); err != nil {
-		return nil, fmt.Errorf("加载环境变量配置失败：%w", err)
-	}
-
 	cfg := &Config{
 		Server: ServerConfig{
-			Port: getEnv("SERVER_PORT", "8080"),
-			Env:  getEnv("SERVER_ENV", "development"),
+			Port: getEnv("MYRAG_SERVER_PORT", getEnv("SERVER_PORT", "8080")),
+			Env:  getEnv("MYRAG_SERVER_ENV", getEnv("SERVER_ENV", "development")),
 		},
 		Database: DatabaseConfig{
-			URL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/ragdb?sslmode=disable"),
+			URL: getEnv("MYRAG_DATABASE_URL", getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/ragdb?sslmode=disable")),
 		},
 		Qdrant: QdrantConfig{
-			URL:    getEnv("QDRANT_URL", "http://localhost:6333"),
-			APIKey: getEnv("QDRANT_API_KEY", ""),
+			URL:    getEnv("MYRAG_QDRANT_URL", getEnv("QDRANT_URL", "http://localhost:6333")),
+			APIKey: getEnv("MYRAG_QDRANT_API_KEY", getEnv("QDRANT_API_KEY", "")),
 		},
 		NATS: NATSConfig{
-			URL: getEnv("NATS_URL", "nats://localhost:4222"),
+			URL: getEnv("MYRAG_NATS_URL", getEnv("NATS_URL", "nats://localhost:4222")),
 		},
 		MinIO: MinIOConfig{
-			Endpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
-			AccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
-			SecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
-			Bucket:    getEnv("MINIO_BUCKET", "documents"),
-			UseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
+			Endpoint:  getEnv("MYRAG_MINIO_ENDPOINT", getEnv("MINIO_ENDPOINT", "localhost:9000")),
+			AccessKey: getEnv("MYRAG_MINIO_ACCESS_KEY", getEnv("MINIO_ACCESS_KEY", "minioadmin")),
+			SecretKey: getEnv("MYRAG_MINIO_SECRET_KEY", getEnv("MINIO_SECRET_KEY", "minioadmin")),
+			Bucket:    getEnv("MYRAG_MINIO_BUCKET", getEnv("MINIO_BUCKET", "documents")),
+			UseSSL:    getEnv("MYRAG_MINIO_USE_SSL", getEnv("MINIO_USE_SSL", "false")) == "true",
 		},
 		LLM: LLMConfig{
-			Provider: getEnv("LLM_PROVIDER", "openai"),
-			APIKey:   getEnv("OPENAI_API_KEY", ""),
-			Model:    getEnv("OPENAI_MODEL", "text-embedding-3-small"),
+			Provider: getEnv("MYRAG_LLM_PROVIDER", getEnv("LLM_PROVIDER", "openai")),
+			APIKey:   getEnv("MYRAG_OPENAI_API_KEY", getEnv("OPENAI_API_KEY", "")),
+			Model:    getEnv("MYRAG_LLM_MODEL", getEnv("LLM_MODEL", "text-embedding-3-small")),
+			BaseURL:  getEnv("MYRAG_OPENAI_BASE_URL", getEnv("OPENAI_BASE_URL", "")),
 		},
 		JWT: JWTConfig{
-			Secret: getEnv("JWT_SECRET", ""),
+			Secret: getEnv("MYRAG_JWT_SECRET", getEnv("JWT_SECRET", "")),
 			Expiry: 24 * time.Hour,
 		},
 		Rerank: RerankConfig{
-			Enabled:    getEnv("BGE_RERANK_ENABLED", "false") == "true",
-			BaseURL:    getEnv("BGE_RERANK_BASE_URL", "http://localhost:8800"),
-			Model:      getEnv("BGE_RERANK_MODEL", "BAAI/bge-reranker-v2-m3"),
-			TopK:       getEnvInt("BGE_RERANK_TOP_K", 10),
-			Candidates: getEnvInt("BGE_RERANK_CANDIDATES", 50),
+			Enabled:    getEnv("MYRAG_BGE_RERANK_ENABLED", getEnv("BGE_RERANK_ENABLED", "false")) == "true",
+			BaseURL:    getEnv("MYRAG_BGE_RERANK_BASE_URL", getEnv("BGE_RERANK_BASE_URL", "http://localhost:8800")),
+			Model:      getEnv("MYRAG_BGE_RERANK_MODEL", getEnv("BGE_RERANK_MODEL", "BAAI/bge-reranker-v2-m3")),
+			TopK:       getEnvInt("MYRAG_BGE_RERANK_TOP_K", getEnvInt("BGE_RERANK_TOP_K", 10)),
+			Candidates: getEnvInt("MYRAG_BGE_RERANK_CANDIDATES", getEnvInt("BGE_RERANK_CANDIDATES", 50)),
 		},
 	}
 

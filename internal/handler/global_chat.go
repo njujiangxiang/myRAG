@@ -40,10 +40,13 @@ func NewGlobalChatHandler(
 	llmAPIKey string,
 	llmModel string,
 	llmProvider string,
+	llmBaseURL string,
 ) *GlobalChatHandler {
-	llmBaseURL := "https://api.openai.com/v1"
-	if llmProvider == "anthropic" {
-		llmBaseURL = "https://api.anthropic.com/v1"
+	if llmBaseURL == "" {
+		llmBaseURL = "https://api.openai.com/v1"
+		if llmProvider == "anthropic" {
+			llmBaseURL = "https://api.anthropic.com/v1"
+		}
 	}
 
 	return &GlobalChatHandler{

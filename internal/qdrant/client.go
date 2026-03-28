@@ -250,7 +250,7 @@ func extractHostAndPort(url string) (string, int) {
 }
 
 // ensureCollection 确保文档集合存在，如果不存在则创建
-// 使用 qwen3-embedding 模型的向量维度（4096）
+// 使用 bge-small-zh-v1.5 模型的向量维度（512）
 // 参数:
 //   - ctx: 上下文
 // 返回:
@@ -270,8 +270,8 @@ func (c *Client) ensureCollection(ctx context.Context) error {
 	}
 
 	// 创建集合
-	// 使用 qwen3-embedding 模型维度（4096）
-	vectorSize := uint64(4096)
+	// 使用 bge-small-zh-v1.5 模型维度（512）
+	vectorSize := uint64(512)
 
 	err = c.CreateCollection(ctx, &qdrant.CreateCollection{
 		CollectionName: c.collectionName,

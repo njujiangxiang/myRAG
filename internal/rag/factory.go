@@ -30,6 +30,7 @@ type FactoryConfig struct {
 	LLMAPIKey       string            // LLM API 密钥
 	LLMModel        string            // LLM 模型名称
 	LLMProvider     string            // LLM 提供商（openai/anthropic）
+	LLMBaseURL      string            // LLM API 基础 URL
 	BM25IndexPath   string            // BM25 索引路径
 	Rerank          *RerankConfig     // 可选的重排序配置
 }
@@ -46,7 +47,7 @@ type RerankConfig struct {
 // NewFactory 创建新的 RAG 策略工厂
 func NewFactory(cfg FactoryConfig) *Factory {
 	// 为 Graph RAG 创建 LLM 客户端
-	llmClient := NewLLMClient(cfg.LLMAPIKey, cfg.LLMModel, cfg.LLMProvider)
+	llmClient := NewLLMClient(cfg.LLMAPIKey, cfg.LLMModel, cfg.LLMProvider, cfg.LLMBaseURL)
 
 	vectorRAG := NewVectorRAG(cfg.QdrantClient, cfg.EmbeddingClient)
 	graphRAG := NewGraphRAG(cfg.QdrantClient, cfg.EmbeddingClient, llmClient)
